@@ -1,494 +1,195 @@
 # Contributing to Parmer
 
-Thanks for your interest in contributing to **Parmer**.
+Thanks for your interest in contributing to **Parmer**! 🐧
 
-Parmer is an open-source, system-wide grammar checker for Linux. The goal is to provide a Grammarly-like experience on Linux without depending on browser extensions or application-specific integrations.
+Parmer is an open-source, system-wide grammar checker for Linux. Our mission is to deliver a smooth, native, Grammarly-like experience across your entire desktop—without relying on browser-specific extensions or one-off application plugins.
 
-The project is currently in an early development stage. The most important part of the proof of concept is already working: Parmer can use **AT-SPI2** to observe text changes and caret movement in other applications and read the current text, cursor position, field name, and application name.
+The project is in an active, early development stage. Our core proof of concept is already functional: Parmer leverages **AT-SPI2** to observe text changes and caret movement across arbitrary desktop applications, reading active text, cursor positions, field names, and application identifiers.
 
-This document explains where the project is now, how it works, where it is going, and where contributors can help.
+---
+
+## Quick Start
+
+If you're a returning contributor or just want to jump straight in, here is the essential workflow:
+
+```text
+Fork & Clone  ──>  Run Prototype  ──>  Create Branch  ──>  Implement & Test  ──>  Open PR
+```
+
+### 30-Second Quick Test
+
+Verify that AT-SPI2 event tracking works on your system:
+
+```bash
+/usr/bin/python3 -m accessibility.atspi
+```
+
+> [!TIP]
+> Use your system's Python interpreter (`/usr/bin/python3`) rather than isolated environments like Linuxbrew or pyenv to ensure the `PyGObject` system bindings are available.
+
+### Quick Contribution Checklist
+
+- [ ] **Pick a task**: Check [Immediate Priorities](#immediate-priorities) or browse open issues.
+- [ ] **Open an issue**: For new features or architectural changes, discuss them first in an issue.
+- [ ] **Branch**: Create a descriptive feature branch (`feat/my-feature` or `fix/issue-description`).
+- [ ] **Respect architecture**: Keep `accessibility/`, `core/`, `engines/`, and `ui/` strictly separated.
+- [ ] **Privacy first**: Never transmit user text over the network without explicit, opt-in consent.
+- [ ] **Commit cleanly**: Use concise, conventional commit messages (`feat:`, `fix:`, `test:`).
+- [ ] **Test & submit**: Verify your changes manually or via unit tests and submit a PR answering the [required PR questions](#pull-request-process).
 
 ---
 
 ## Table of Contents
 
-- [Project Status](#project-status)
-- [What Is Parmer?](#what-is-parmer)
-- [Goals](#goals)
-- [Non-Goals](#non-goals)
-- [Architecture](#architecture)
-- [Current Repository Structure](#current-repository-structure)
-- [Current Progress](#current-progress)
-- [Important AT-SPI2 Details](#important-at-spi2-details)
-- [Development Roadmap](#development-roadmap)
-- [Immediate Priorities](#immediate-priorities)
-- [Areas Where You Can Contribute](#areas-where-you-can-contribute)
-- [Development Setup](#development-setup)
-- [Running the Current AT-SPI Prototype](#running-the-current-at-spi-prototype)
-- [How the Current Text Tracking Works](#how-the-current-text-tracking-works)
-- [Planned Grammar Checking Pipeline](#planned-grammar-checking-pipeline)
-- [Privacy](#privacy)
-- [Coding Guidelines](#coding-guidelines)
-- [Git and Commit Guidelines](#git-and-commit-guidelines)
-- [Issues and Pull Requests](#issues-and-pull-requests)
-- [Contribution Checklist](#contribution-checklist)
-- [Known Problems and Open Questions](#known-problems-and-open-questions)
-- [Future Ideas](#future-ideas)
-- [License](#license)
+- [Quick Start](#quick-start)
+- [1. Project Overview and Architecture](#1-project-overview-and-architecture)
+  - [What Is Parmer?](#what-is-parmer)
+  - [Status at a Glance](#status-at-a-glance)
+  - [Current Progress](#current-progress)
+  - [Current TextTracker](#current-texttracker)
+  - [Goals and Non-Goals](#goals-and-non-goals)
+  - [System Architecture](#system-architecture)
+  - [Repository Structure](#repository-structure)
+  - [Planned Grammar Pipeline](#planned-grammar-pipeline)
+- [2. Prerequisites and Development Setup](#2-prerequisites-and-development-setup)
+  - [System Requirements](#system-requirements)
+  - [Python Environment and Binding Caveats](#python-environment-and-binding-caveats)
+  - [Running the AT-SPI Prototype](#running-the-at-spi-prototype)
+- [3. How to Contribute](#3-how-to-contribute)
+  - [Finding Work to Do](#finding-work-to-do)
+    - [Immediate Priorities](#immediate-priorities)
+    - [By Experience Level](#by-experience-level)
+    - [Contribution Domains](#contribution-domains)
+  - [Reporting Issues and Proposing Features](#reporting-issues-and-proposing-features)
+  - [Branching and Git Workflow](#branching-and-git-workflow)
+  - [Git Commit Standards](#git-commit-standards)
+  - [Pull Request Process](#pull-request-process)
+  - [Submission Checklist](#submission-checklist)
+- [4. Code Style and Technical Standards](#4-code-style-and-technical-standards)
+  - [Architectural Separation and Boundaries](#architectural-separation-and-boundaries)
+  - [Critical AT-SPI2 Implementation Rules](#critical-at-spi2-implementation-rules)
+  - [Object Lifetime and Error Recovery](#object-lifetime-and-error-recovery)
+  - [Input Handling Policy](#input-handling-policy)
+  - [Dependencies and Abstraction Philosophy](#dependencies-and-abstraction-philosophy)
+- [5. Testing Guidelines](#5-testing-guidelines)
+  - [Testing Scope](#testing-scope)
+  - [Desktop and Application Compatibility Testing](#desktop-and-application-compatibility-testing)
+  - [Performance and Edge Cases](#performance-and-edge-cases)
+- [6. Review Process](#6-review-process)
+  - [Review Criteria](#review-criteria)
+  - [UI Changes](#ui-changes)
+- [7. Roadmap and Milestones](#7-roadmap-and-milestones)
+  - [Development Roadmap (Phases 0–12)](#development-roadmap-phases-012)
+  - [Milestone Sequence (M0–M10)](#milestone-sequence-m0m10)
+- [8. Release and Packaging](#8-release-and-packaging)
+- [9. Privacy, Security, and Ethics](#9-privacy-security-and-ethics)
+  - [Privacy-First Core Principle](#privacy-first-core-principle)
+  - [Sensitive Input Handling](#sensitive-input-handling)
+  - [Remote and AI Engine Policy](#remote-and-ai-engine-policy)
+  - [Community Standards](#community-standards)
+- [10. Troubleshooting, Known Issues, and FAQ](#10-troubleshooting-known-issues-and-faq)
+  - [Common Issues and Workarounds](#common-issues-and-workarounds)
+  - [Open Research Questions](#open-research-questions)
+- [11. Future Ideas (Exploratory)](#11-future-ideas-exploratory)
+  - [Persian Grammar Checking](#persian-grammar-checking)
+  - [Optional AI Engine](#optional-ai-engine)
+  - [Per-Application Configuration](#per-application-configuration)
+  - [Custom Dictionaries](#custom-dictionaries)
+  - [Writing Style Analysis](#writing-style-analysis)
+- [12. Final Note](#12-final-note)
 
 ---
 
-## Project Status
+## 1. Project Overview and Architecture
 
-> **Current stage: Working AT-SPI2 text-tracking proof of concept**
+### What Is Parmer?
 
-Parmer is **not yet a complete grammar checker**.
+Parmer is designed as a **system-wide grammar checker for Linux**.
 
-The current project has successfully demonstrated the most important system-wide integration idea:
+Instead of writing custom browser plugins or application-specific integrations for Firefox, Chromium, Telegram, Discord, LibreOffice, GTK apps, or Qt apps, Parmer leverages the Linux accessibility stack. Any application that exposes its text controls through **AT-SPI2** is automatically supported.
 
-```text
-Other Linux application
-        ↓
-      AT-SPI2
-        ↓
-  Parmer event listener
-        ↓
-    TextTracker
-        ↓
-text + cursor + application + field
-```
-
-The current prototype can receive events such as:
-
-```text
-object:text-changed:insert
-object:text-caret-moved
-```
-
-and can retrieve:
-
-- application name
-- accessible field name
-- current text
-- caret/cursor position
-
-The next major step is to turn this event stream into a stable text-processing pipeline and then connect it to a grammar engine.
-
-### Current status at a glance
-
-| Component | Status |
-|---|---|
-| Python project structure | 🟢 Started |
-| AT-SPI2 integration | 🟢 Working PoC |
-| Focus event handling | 🟢 Prototype |
-| Text-change events | 🟢 Working |
-| Caret tracking | 🟢 Working |
-| Reading text from accessible objects | 🟢 Working |
-| TextTracker | 🟢 Prototype |
-| Debouncing | 🔴 Not implemented yet |
-| Grammar engine abstraction | 🟡 Skeleton/planned |
-| Local LanguageTool integration | 🟡 Skeleton/planned |
-| Suggestion model | 🟡 Skeleton/planned |
-| Suggestion UI | 🔴 Not implemented |
-| GTK4/Libadwaita UI | 🔴 Not implemented |
-| Packaging | 🔴 Not implemented |
-| Settings | 🔴 Not implemented |
-| Persian-specific checking | 🔴 Not implemented |
-| Automated test suite | 🔴 Not implemented |
-| Production reliability | 🔴 Not ready |
-
----
-
-## What Is Parmer?
-
-Parmer is intended to be a **system-wide grammar checker for Linux**.
-
-Instead of integrating separately with Firefox, Chromium, Telegram, Discord, LibreOffice, GTK applications, Qt applications, etc., Parmer aims to use the Linux accessibility stack to obtain text from applications that expose their text fields through AT-SPI2.
-
-The intended experience is:
+The intended user interaction flow:
 
 ```text
 User types:
-
-I has a apple
-
-        ↓
-
-Parmer observes the text
-
-        ↓
-
+"I has a apple"
+       │
+       ▼
+Parmer observes text via AT-SPI2
+       │
+       ▼
 Grammar engine detects:
-
-"I has" → "I have"
-"a apple" → "an apple"
-
-        ↓
-
-Parmer displays suggestions
-
-        ↓
-
-User accepts or ignores them
+• "I has"   ──> "I have"
+• "a apple" ──> "an apple"
+       │
+       ▼
+Parmer displays an inline suggestion popover
+       │
+       ▼
+User accepts or ignores suggestions
 ```
 
-The application should feel like a native Linux utility rather than a browser-only extension.
+Parmer runs as a native Linux desktop utility, respecting your system theme, desktop environment, and privacy.
 
 ---
 
-## Goals
+### Status at a Glance
 
-### Primary goals
+> **Current Stage: Working AT-SPI2 text-tracking proof of concept (PoC)**
+>
+> Parmer is **not yet a finished grammar checker**. We have proven system-wide text observation and caret tracking. We are currently building a debounced processing pipeline to connect those events to a local grammar engine.
 
-1. Provide system-wide grammar checking on Linux.
-2. Work across as many accessible applications as possible.
-3. Use Linux-native accessibility APIs instead of global keyboard hooks.
-4. Support Wayland-friendly architecture.
-5. Keep user text private by default.
-6. Prefer local processing where practical.
-7. Provide a clean GTK4/Libadwaita interface.
-8. Make the architecture modular so grammar engines can be replaced.
-9. Make it possible to add language-specific engines later.
-10. Keep the project understandable and contributor-friendly.
-
-### Technical goals
-
-The target architecture is:
-
-```text
-Applications
-    ↓
-AT-SPI2
-    ↓
-Accessibility layer
-    ↓
-TextTracker
-    ↓
-Debouncer
-    ↓
-Grammar Engine
-    ↓
-Suggestions
-    ↓
-GTK4 / Libadwaita UI
-```
+| Component / Subsystem | Status | Details |
+| :--- | :--- | :--- |
+| **Python project structure** | 🟢 Started | Base directory layout and modules initialized. |
+| **AT-SPI2 integration** | 🟢 Working PoC | Functional event loop listening to system accessibility bus. |
+| **Focus event handling** | 🟢 Prototype | Receives focus signals; filters out non-text UI components. |
+| **Text-change events** | 🟢 Working | Receives and parses `object:text-changed:insert` events. |
+| **Caret tracking** | 🟢 Working | Receives and parses `object:text-caret-moved` offset changes. |
+| **Reading accessible text** | 🟢 Working | Successfully extracts active buffer text using `Atspi.Text`. |
+| **TextTracker state manager** | 🟢 Prototype | Holds active application name, field, text, and cursor index. |
+| **Event debouncing** | 🔴 Not implemented | Pending: prevents checking text on every keystroke. |
+| **Grammar engine abstraction** | 🟡 Skeleton / Planned | Generic engine interface planned in `core/checker.py`. |
+| **Local LanguageTool engine** | 🟡 Skeleton / Planned | Integration wrapper planned in `engines/languagetool.py`. |
+| **Suggestion model** | 🟡 Skeleton / Planned | Standard data structure for replacements and ranges. |
+| **Suggestion UI** | 🔴 Not implemented | Inline popovers and suggestion widgets pending. |
+| **GTK4 / Libadwaita UI** | 🔴 Not implemented | Native desktop controls and system tray pending. |
+| **Packaging (Flatpak/Deb)** | 🔴 Not implemented | Distribution packages not yet configured. |
+| **Settings & preferences** | 🔴 Not implemented | Configuration storage and UI pending. |
+| **Persian grammar checking** | 🔴 Not implemented | Future planned language-specific engine. |
+| **Automated test suite** | 🔴 Not implemented | Unit and integration test coverage pending. |
+| **Production reliability** | 🔴 Not ready | Early prototype; not yet ready for daily driver use. |
 
 ---
 
-## Non-Goals
+### Current Progress
 
-Parmer should not initially try to:
+Our prototype validates five key integration capabilities:
 
-- implement a complete grammar engine from scratch
-- intercept every keyboard event globally
-- depend on X11-specific keyboard hooks
-- send every character typed by the user to a remote server
-- support every application perfectly from day one
-- build the UI before the text-processing pipeline is reliable
-- add AI just because it is available
-
-The first objective is a reliable foundation.
-
----
-
-# Architecture
-
-## High-level architecture
-
-```text
-┌─────────────────────────────────────────────┐
-│              User Applications              │
-│                                             │
-│ Firefox · Chromium · Telegram · GTK · Qt    │
-└──────────────────────┬──────────────────────┘
-                       │
-                       ▼
-                ┌─────────────┐
-                │   AT-SPI2   │
-                └──────┬──────┘
-                       │
-                       ▼
-             ┌───────────────────┐
-             │ accessibility/    │
-             │                   │
-             │ Event listeners   │
-             │ Focus handling    │
-             │ Text access       │
-             └─────────┬─────────┘
-                       │
-                       ▼
-             ┌───────────────────┐
-             │   TextTracker     │
-             │                   │
-             │ application       │
-             │ field             │
-             │ text              │
-             │ cursor            │
-             └─────────┬─────────┘
-                       │
-                       ▼
-             ┌───────────────────┐
-             │    Debouncer      │
-             └─────────┬─────────┘
-                       │
-                       ▼
-             ┌───────────────────┐
-             │  Grammar Engine   │
-             │                   │
-             │ LanguageTool      │
-             │ future engines    │
-             └─────────┬─────────┘
-                       │
-                       ▼
-             ┌───────────────────┐
-             │    Suggestions    │
-             └─────────┬─────────┘
-                       │
-                       ▼
-             ┌───────────────────┐
-             │ GTK4 / Libadwaita │
-             │                   │
-             │ Overlay           │
-             │ Popover           │
-             │ Tray              │
-             └───────────────────┘
-```
+1. **AT-SPI Application Discovery**:
+   - Confirmed discovery across diverse applications, including Chromium, Telegram, Telegram Desktop, GitHub Desktop, and native GNOME utilities.
+2. **Focus Event Filtering**:
+   - Focus events fire for arbitrary accessibility widgets (`window`, `panel`, `filler`, `text`). The accessibility layer filters out non-text objects to track only editable, relevant text fields.
+3. **Text-Change Events**:
+   - Accurately captures insertion events:
+     ```text
+     Event type : object:text-changed:insert
+     Source     : Caption
+     Role       : text
+     Cursor     : 6
+     ```
+4. **Caret Movement Events**:
+   - Captures `object:text-caret-moved` signals, enabling suggestion placement directly at the user's cursor.
+5. **Reading Accessible Text Buffer**:
+   - Successfully extracts text buffers across applications.
+   - ⚠️ **Key PyGObject Nuance**: Direct method calls like `obj.get_text()` fail because PyGObject resolves to `Atspi.Accessible.get_text(self) -> Atspi.Text` rather than `Atspi.Text.get_text(self, start, end) -> str`.
+   - See [Critical AT-SPI2 Implementation Rules](#critical-at-spi2-implementation-rules) for the exact code pattern required.
 
 ---
 
-# Current Repository Structure
+### Current TextTracker
 
-```text
-parmer/
-├── accessibility/
-│   ├── __init__.py
-│   ├── atspi.py
-│   ├── focus.py
-│   └── text.py
-│
-├── core/
-│   ├── checker.py
-│   ├── context.py
-│   ├── language.py
-│   ├── suggestions.py
-│   └── text_tracker.py
-│
-├── engines/
-│   ├── languagetool.py
-│   └── local.py
-│
-├── ui/
-│   ├── overlay.py
-│   ├── suggestion_popover.py
-│   └── tray.py
-│
-├── LICENSE
-├── main.py
-└── readme.md
-```
-
-The codebase is intentionally separated into layers.
-
-## `accessibility/`
-
-This package is responsible for communicating with the Linux accessibility stack.
-
-It should contain:
-
-- AT-SPI initialization
-- event listeners
-- focus tracking
-- text interface access
-- accessibility-specific error handling
-
-It should **not** contain grammar-checking logic.
-
----
-
-## `core/`
-
-This is where Parmer's application-independent logic belongs.
-
-Examples:
-
-- tracking the current text field
-- debouncing
-- language detection/selection
-- grammar-checking orchestration
-- context management
-- suggestion representation
-
-The core should ideally not need to know whether text came from Telegram, Chromium, GTK, Qt, or another application.
-
----
-
-## `engines/`
-
-Grammar engines live here.
-
-The initial intended engine is a local LanguageTool integration.
-
-The long-term goal is to make engines interchangeable:
-
-```text
-Grammar Engine
-├── Local LanguageTool
-├── Custom/Persian engine
-├── Other local engines
-└── Optional remote/AI engine
-```
-
----
-
-## `ui/`
-
-All user-facing GTK4/Libadwaita components belong here.
-
-Planned responsibilities include:
-
-- suggestion popovers
-- correction overlays
-- system tray/status interface
-- settings
-- language selection
-- enable/disable controls
-
-The UI should not directly implement AT-SPI logic.
-
----
-
-# Current Progress
-
-## 1. AT-SPI application discovery
-
-The prototype successfully discovered accessible applications through AT-SPI.
-
-Examples observed during development included:
-
-- Chromium
-- Telegram
-- TelegramDesktop
-- GitHub Desktop
-- GNOME components
-- other accessible applications
-
-This proved that Parmer can see the system accessibility tree.
-
----
-
-## 2. Focus events
-
-Parmer can listen for focus-related accessibility events.
-
-Many focus events are generated for objects that are not text fields.
-
-For example:
-
-```text
-window
-panel
-filler
-text
-```
-
-Therefore the accessibility layer filters objects and only processes relevant text objects.
-
----
-
-## 3. Text-change events
-
-The prototype successfully receives events such as:
-
-```text
-object:text-changed:insert
-```
-
-This is the core signal needed to know that the user changed text.
-
-Example observed event:
-
-```text
-Event type : object:text-changed:insert
-Source     : Caption
-Role       : text
-Cursor     : 6
-```
-
----
-
-## 4. Caret events
-
-The prototype also receives:
-
-```text
-object:text-caret-moved
-```
-
-Caret positions were observed changing as text was entered.
-
-This gives Parmer the information required to associate the current grammar suggestions with the cursor position.
-
----
-
-## 5. Reading the actual text
-
-A particularly important implementation detail was discovered while testing PyGObject's AT-SPI bindings.
-
-`Atspi.Accessible` has an overridden `get_text()` method:
-
-```python
-Atspi.Accessible.get_text(self) -> Atspi.Text
-```
-
-This is **not** the same as the actual `Atspi.Text.get_text()` method:
-
-```python
-Atspi.Text.get_text(
-    self,
-    start_offset,
-    end_offset
-) -> str
-```
-
-Because `Atspi.Accessible` also implements the `Atspi.Text` interface, calling:
-
-```python
-obj.get_text(0, character_count)
-```
-
-can incorrectly resolve to the `Accessible.get_text()` override.
-
-The working approach is to call the interface method directly:
-
-```python
-Atspi.Text.get_text(
-    obj,
-    0,
-    character_count
-)
-```
-
-Likewise:
-
-```python
-Atspi.Text.get_caret_offset(obj)
-```
-
-and:
-
-```python
-Atspi.Text.get_character_count(obj)
-```
-
-This distinction is important for anyone modifying the AT-SPI text code.
-
----
-
-# Current TextTracker
-
-The current working concept is a `TextTracker` that stores the state of the currently observed text object.
-
-Conceptually:
+The text-tracking prototype maintains the active field's state using a lightweight `TextTracker` object:
 
 ```python
 class TextTracker:
@@ -499,1126 +200,923 @@ class TextTracker:
         self.cursor = 0
 ```
 
-When an accessible object changes, the tracker obtains:
-
-```text
-application
-field
-cursor
-text
-```
-
-The current implementation uses the AT-SPI `Text` interface directly.
+When an accessible object updates, `TextTracker` captures:
+- **Application name**: Identifies the source window or process.
+- **Field name / accessible role**: Identifies the specific input element.
+- **Cursor position**: Current caret integer offset.
+- **Text buffer**: Snapshot of the current text string.
 
 ---
 
-# Development Roadmap
+### Goals and Non-Goals
 
-The roadmap is intentionally incremental.
+#### Primary Goals
 
-## Phase 0 — Foundation
+1. **System-wide coverage**: Provide grammar checking across all accessible Linux desktop applications.
+2. **Broad application support**: Work out of the box with GTK, Qt, Electron, Chromium, and Firefox apps.
+3. **Native accessibility APIs**: Use Linux-standard AT-SPI2 rather than invasive global keyboard hooks.
+4. **Wayland-first design**: Build natively for modern Wayland compositors (as well as X11).
+5. **Privacy by default**: Keep user text on the local machine; zero unprompted data leakage.
+6. **Local processing**: Default to lightweight, local grammar engines (e.g., local LanguageTool).
+7. **Native look & feel**: Build clean UI overlays using GTK4 and Libadwaita.
+8. **Pluggable engine architecture**: Abstract the grammar engine interface so backends can be swapped easily.
+9. **Extensible multilingual support**: Enable community contributions for language-specific engines (e.g., Persian).
+10. **Contributor-friendly codebase**: Maintain modular, self-contained packages with clear separation of concerns.
 
-### Status: 🟢 In progress / largely complete
+#### Non-Goals
 
-- [x] Create repository
-- [x] Create Python project structure
-- [x] Create accessibility layer
-- [x] Initialize AT-SPI
-- [x] Discover accessible applications
-- [x] Listen for focus changes
-- [x] Listen for text changes
-- [x] Listen for caret movement
-- [x] Detect text objects
-- [x] Read current text
-- [x] Read caret position
-- [x] Track application name
-- [x] Track field name
+Parmer intentionally avoids:
 
----
-
-# Phase 1 — Robust Text Tracking
-
-### Status: 🟡 Next priority
-
-This phase should make the current PoC reliable enough to become the foundation of the rest of Parmer.
-
-### Tasks
-
-- [ ] Separate AT-SPI event handling from text state management
-- [ ] Make `TextTracker` independent from UI
-- [ ] Handle disappearing accessibility objects safely
-- [ ] Handle invalid/stale AT-SPI object paths
-- [ ] Handle focus changes cleanly
-- [ ] Ignore irrelevant accessibility roles
-- [ ] Detect when the active text field changes
-- [ ] Avoid unnecessary full-text reads
-- [ ] Track previous text
-- [ ] Track text changes/diffs where useful
-- [ ] Track selection state
-- [ ] Track cursor movement
-- [ ] Handle applications that expose incomplete accessibility data
-- [ ] Add structured event/state objects instead of relying on debug printing
-
-### Important
-
-The AT-SPI layer should not crash if an application closes, a text field disappears, or an accessibility object becomes invalid.
-
-For example, during development an object disappeared between receiving an event and reading it. This can result in an AT-SPI/GLib error such as:
-
-```text
-No such object path
-```
-
-This should be treated as a recoverable condition.
+- **Reinventing grammar engines from scratch**: We integrate proven backends like LanguageTool rather than building a bespoke rule engine.
+- **Global keystroke interception**: We do not capture global keyboard events or act as a keylogger.
+- **X11-specific hacks**: We do not rely on X11 XTest/XRecord extensions that break under Wayland.
+- **Cloud transmission of keystrokes**: We will never stream user keystrokes to third-party cloud servers.
+- **Premature universal coverage**: We focus on stabilizing core applications first before chasing toolkit edge cases.
+- **UI-before-pipeline development**: We prioritize a bulletproof text-processing pipeline before polishing visual widgets.
+- **Gratuitous AI integration**: We will not add heavy AI models simply because they are trendy; efficiency and responsiveness come first.
 
 ---
 
-# Phase 2 — Debouncing
+### System Architecture
 
-### Status: 🔴 Not implemented
+Parmer is organized into modular layers to isolate desktop accessibility details from grammar logic and UI presentation:
 
-A grammar checker must **not** run after every keystroke.
+```mermaid
+flowchart TD
+    Apps["User Applications<br/>(Firefox · Chromium · Telegram · GTK4 · Qt6)"]
+    Atspi["AT-SPI2"]
+    Accessibility["accessibility/<br/>• Event listeners<br/>• Focus handling<br/>• Text extraction"]
+    TextTracker["TextTracker<br/>• App / Field name<br/>• Buffer snapshot<br/>• Caret position"]
+    Debouncer["Debouncer"]
+    GrammarEngine["Grammar Engine<br/>• LanguageTool<br/>• Custom engines"]
+    Suggestions["Suggestions"]
+    UI["GTK4 / Libadwaita<br/>• Inline Popovers<br/>• Text Overlays<br/>• System Tray App"]
 
-Without debouncing:
-
-```text
-H
-He
-Hel
-Hell
-Hello
+    Apps --> Atspi
+    Atspi --> Accessibility
+    Accessibility --> TextTracker
+    TextTracker --> Debouncer
+    Debouncer --> GrammarEngine
+    GrammarEngine --> Suggestions
+    Suggestions --> UI
 ```
 
-could produce five grammar-check requests.
+---
 
-Instead:
+### Repository Structure
+
+```text
+parmer/
+├── accessibility/           # Linux accessibility (AT-SPI2) layer
+│   ├── __init__.py
+│   ├── atspi.py             # AT-SPI initialization and event listener loop
+│   ├── focus.py             # Accessible focus event tracking and filtering
+│   └── text.py              # AT-SPI Text interface access and offset tracking
+│
+├── core/                    # Application logic (engine- & toolkit-independent)
+│   ├── checker.py           # Grammar checking coordinator / orchestrator
+│   ├── context.py           # Application, window, and field context models
+│   ├── language.py          # Language detection and selection logic
+│   ├── suggestions.py       # Standard suggestion and replacement data structures
+│   └── text_tracker.py      # Active text field buffer and caret tracker
+│
+├── engines/                 # Grammar engine integrations
+│   ├── languagetool.py      # Local LanguageTool integration wrapper
+│   └── local.py             # Base classes for local grammar backends
+│
+├── ui/                      # GTK4 / Libadwaita user interface
+│   ├── overlay.py           # Floating correction indicators
+│   ├── suggestion_popover.py# Suggestion selection and replacement popover
+│   └── tray.py              # Desktop status icon and menu
+│
+├── LICENSE                  # Open source license
+├── main.py                  # Application entry point
+└── readme.md                # Project introduction
+```
+
+#### Package Responsibilities
+
+- **`accessibility/`**:
+  - Handles all direct AT-SPI communication, GLib event listeners, and accessibility error recovery.
+  - **Rule**: Must never import or contain grammar-checking logic.
+- **`core/`**:
+  - Pure application logic: debouncing, text tracking, language detection, and suggestion orchestration.
+  - **Rule**: Must remain application-agnostic. `core/` should not care whether text originated from Telegram, Chromium, or LibreOffice.
+- **`engines/`**:
+  - Encapsulates grammar backends (LanguageTool, future local engines, optional AI).
+  - **Rule**: Each engine implements a common interface (`check(text, language) -> List[Suggestion]`).
+- **`ui/`**:
+  - User-facing GTK4/Libadwaita components (popovers, overlays, tray menus, settings).
+  - **Rule**: The UI consumes suggestion data models; it must never directly call AT-SPI APIs.
+
+---
+
+### Planned Grammar Pipeline
+
+To ensure the desktop remains responsive, event observation is decoupled from text checking:
 
 ```text
 User types
-     ↓
-TextTracker updates
-     ↓
-wait briefly
-     ↓
-user stops typing
-     ↓
-Grammar check
+    │
+    ▼
+AT-SPI text-changed event fires
+    │
+    ▼
+TextTracker updates active buffer state
+    │
+    ▼
+Debouncer waits for brief typing pause (cancels pending checks)
+    │
+    ▼
+Snapshot captured: text + cursor + language
+    │
+    ▼
+Grammar Checker dispatches check asynchronously
+    │
+    ▼
+Grammar Engine evaluates text
+    │
+    ▼
+Suggestion data objects returned
+    │
+    ▼
+UI renders suggestion popover near caret
 ```
 
-### Tasks
-
-- [ ] Implement a debouncer
-- [ ] Make delay configurable
-- [ ] Cancel outdated checks
-- [ ] Avoid checking unchanged text
-- [ ] Prevent race conditions between old and new checks
-- [ ] Decide how cursor movement should interact with pending checks
-
-A likely starting point is a short idle delay after the latest text change.
+> [!IMPORTANT]
+> The AT-SPI event listener must execute in milliseconds. All heavy processing (debouncing, grammar checks, network calls, or large disk operations) **must execute asynchronously outside the accessibility callback loop**.
 
 ---
 
-# Phase 3 — Grammar Engine Abstraction
+## 2. Prerequisites and Development Setup
 
-### Status: 🟡 Skeleton exists
+### System Requirements
 
-The core should not directly depend on LanguageTool.
+To develop or test Parmer on Linux, ensure you have:
 
-Instead:
+- **Linux desktop**: Wayland or X11 (GNOME, KDE Plasma, Xfce, etc.)
+- **Python**: Version 3.10+
+- **AT-SPI2**: `at-spi2-core` daemon running on your desktop session bus
+- **PyGObject**: GObject Introspection bindings for Python
+- **GTK4 & Libadwaita**: Required for future UI development
 
-```text
-Checker
-   ↓
-GrammarEngine interface
-   ↓
-┌──────────────────────┐
-│ LanguageTool         │
-│ Future engines       │
-└──────────────────────┘
-```
+#### Distribution Package Installation
 
-The abstraction should make it possible to replace the engine later.
-
-Possible conceptual API:
-
-```python
-check(text, language)
-```
-
-returning structured suggestions.
-
----
-
-# Phase 4 — Local LanguageTool
-
-### Status: 🟡 Planned
-
-The first practical grammar engine should be **local LanguageTool**.
-
-The initial objective is:
-
-```text
-Parmer
-  ↓
-Local LanguageTool
-  ↓
-Matches
-  ↓
-Suggestions
-```
-
-### Requirements
-
-- [ ] Run LanguageTool locally
-- [ ] Create Python integration
-- [ ] Send text to the local engine
-- [ ] Parse grammar matches
-- [ ] Convert matches into Parmer suggestion objects
-- [ ] Preserve offsets
-- [ ] Preserve replacement candidates
-- [ ] Preserve useful rule/category information
-- [ ] Handle engine errors
-- [ ] Avoid blocking the UI/event loop
-
-The engine must not block AT-SPI event processing.
-
----
-
-# Phase 5 — Suggestion Model
-
-### Status: 🟡 Planned
-
-Create a clean internal representation for suggestions.
-
-A suggestion should eventually contain information similar to:
-
-```text
-start offset
-end offset
-original text
-replacement(s)
-message
-rule/category
-confidence/priority if available
-```
-
-For example:
-
-```text
-Text:
-I has a cat
-
-Suggestion:
-"I has"
-    ↓
-"I have"
-```
-
-The UI should consume these objects without knowing anything about LanguageTool internals.
-
----
-
-# Phase 6 — Correction UI
-
-### Status: 🔴 Not implemented
-
-Build the first GTK4/Libadwaita interface.
-
-Possible UI:
-
-```text
-              ┌──────────────────────┐
-              │ has → have           │
-              │                      │
-              │ I have a cat         │
-              └──────────────────────┘
-```
-
-Potential components:
-
-- [ ] suggestion popover
-- [ ] correction action
-- [ ] dismiss action
-- [ ] ignore rule
-- [ ] ignore word
-- [ ] suggestion navigation
-- [ ] positioning near the text/caret
-- [ ] accessibility-friendly controls
-
-The exact visual design should be decided after the underlying data flow works.
-
----
-
-# Phase 7 — Applying Corrections
-
-### Status: 🔴 Not implemented
-
-Once a suggestion is selected, Parmer needs to modify the text in the target application.
-
-The preferred approach is to use accessibility APIs where possible rather than simulating keyboard input.
-
-Potential path:
-
-```text
-Suggestion
-    ↓
-AT-SPI EditableText
-    ↓
-replace selected range
-```
-
-This needs careful testing because not every application exposes the same capabilities.
-
-### Tasks
-
-- [ ] Detect editable text support
-- [ ] Test `EditableText`
-- [ ] Replace text ranges
-- [ ] Preserve cursor position
-- [ ] Handle applications that expose read-only text
-- [ ] Fall back gracefully when modification is unavailable
-
----
-
-# Phase 8 — Context Awareness
-
-### Status: 🔴 Not implemented
-
-Grammar checking should eventually understand enough context to avoid unnecessary or incorrect checks.
-
-Potential context:
-
-```text
-Application
-Window
-Text field
-Language
-Cursor
-Selection
-Surrounding text
-```
-
-For example, Parmer may eventually distinguish:
-
-```text
-chat message
-code editor
-URL field
-password field
-search field
-email composer
-document editor
-```
-
-This should be implemented carefully and conservatively.
-
----
-
-# Phase 9 — Language Support
-
-### Status: 🔴 Not implemented
-
-The first implementation should focus on getting the architecture stable.
-
-After that:
-
-- [ ] language selection
-- [ ] automatic language detection
-- [ ] multiple-language support
-- [ ] Persian support
-- [ ] Persian-specific rules
-- [ ] language-specific engines
-
-Persian is an important future direction, but it should not force the core architecture to become language-specific.
-
----
-
-# Phase 10 — Privacy and Settings
-
-### Status: 🔴 Not implemented
-
-Create a settings system for:
-
-- [ ] enable/disable Parmer
-- [ ] language
-- [ ] grammar engine
-- [ ] debounce delay
-- [ ] ignored applications
-- [ ] ignored fields
-- [ ] ignored words/rules
-- [ ] privacy settings
-- [ ] optional online engines
-
-Privacy should be explicit and understandable.
-
----
-
-# Phase 11 — Packaging
-
-### Status: 🔴 Not implemented
-
-Eventually Parmer should be installable without cloning the repository.
-
-Potential targets:
-
-- [ ] Debian/Ubuntu package
-- [ ] Flatpak
-- [ ] AppImage if useful
-- [ ] distribution packages
-- [ ] desktop entry
-- [ ] autostart/background service
-- [ ] uninstall support
-
-Packaging should be designed around the actual AT-SPI and GTK runtime requirements.
-
----
-
-# Phase 12 — Production Hardening
-
-### Status: 🔴 Future
-
-Before calling Parmer production-ready:
-
-- [ ] automated tests
-- [ ] integration tests
-- [ ] memory leak investigation
-- [ ] CPU usage testing
-- [ ] large-text testing
-- [ ] application compatibility testing
-- [ ] accessibility failure handling
-- [ ] crash recovery
-- [ ] logging
-- [ ] configurable debug mode
-- [ ] packaging tests
-- [ ] Wayland testing
-- [ ] multiple desktop environment testing
-
----
-
-# Immediate Priorities
-
-If you want to contribute **right now**, these are the most useful areas.
-
-## Priority 1 — TextTracker reliability
-
-Improve:
-
-```text
-accessibility events
-        ↓
-TextTracker
-```
-
-Focus on:
-
-- stale objects
-- focus changes
-- text changes
-- cursor movement
-- selection
-- application switching
-- error recovery
-
----
-
-## Priority 2 — Debouncer
-
-Build:
-
-```text
-TextTracker
-     ↓
-Debouncer
-```
-
-The debouncer should prevent the grammar engine from running on every character.
-
----
-
-## Priority 3 — LanguageTool integration
-
-Implement the local engine:
-
-```text
-core/checker.py
-       ↓
-engines/languagetool.py
-```
-
-Keep it asynchronous/non-blocking where possible.
-
----
-
-## Priority 4 — Suggestion model
-
-Create a clean representation of grammar suggestions.
-
-Do not couple the suggestion model directly to LanguageTool.
-
----
-
-## Priority 5 — Tests
-
-Add tests around:
-
-- text tracking
-- offset handling
-- debouncing
-- suggestion parsing
-- grammar engine results
-- context handling
-
----
-
-# Areas Where You Can Contribute
-
-You do not need to work on the whole project.
-
-Good contribution areas include:
-
-### Accessibility
-
-- AT-SPI event handling
-- focus tracking
-- text extraction
-- EditableText support
-- application compatibility
-
-### Core
-
-- TextTracker
-- debouncer
-- context handling
-- language management
-- checker orchestration
-- suggestion data structures
-
-### Grammar Engines
-
-- LanguageTool
-- alternative local engines
-- Persian grammar support
-- language-specific processing
-
-### UI
-
-- GTK4
-- Libadwaita
-- suggestion popovers
-- overlays
-- settings
-- system tray/status UI
-
-### Testing
-
-- unit tests
-- integration tests
-- application compatibility
-- Wayland testing
-- accessibility edge cases
-
-### Documentation
-
-- architecture documentation
-- setup guides
-- troubleshooting
-- application compatibility reports
-- language support documentation
-
-### Packaging
-
-- Flatpak
-- Debian packaging
-- desktop integration
-- autostart
-
----
-
-# Development Setup
-
-Parmer is currently developed primarily with Python.
-
-A Linux environment with:
-
-- Python 3
-- PyGObject
-- AT-SPI2
-- GTK4/Libadwaita for future UI work
-
-is expected.
-
-On systems where multiple Python installations exist, make sure the Python interpreter has the required GObject/AT-SPI bindings.
-
-For example, the current development environment uses the system Python:
-
+##### Debian / Ubuntu / Pop!_OS
 ```bash
-/usr/bin/python3
+sudo apt update
+sudo apt install python3 python3-gi python3-gi-cairo gir1.2-atspi-2.0 gir1.2-gtk-4.0 gir1.2-adw-1 at-spi2-core
 ```
 
-rather than the separate Linuxbrew Python installation, because the system interpreter has the required GTK/AT-SPI Python bindings available.
+##### Fedora
+```bash
+sudo dnf install python3 python3-gobject at-spi2-core gtk4 libadwaita
+```
+
+##### Arch Linux
+```bash
+sudo pacman -S python python-gobject at-spi2-core gtk4 libadwaita
+```
 
 ---
 
-# Running the Current AT-SPI Prototype
+### Python Environment and Binding Caveats
 
-From the repository root:
+> [!WARNING]
+> **Use the system Python interpreter (`/usr/bin/python3`)**.
+>
+> On Linux, GObject Introspection bindings for AT-SPI (`gi.repository.Atspi`) are installed into system Python paths (`/usr/lib/python3/dist-packages` or `/usr/lib/python3.X/site-packages`).
+>
+> If you run Parmer using an isolated Python runtime (such as **Linuxbrew**, **pyenv**, or a default virtualenv created without `--system-site-packages`), imports of `gi.repository.Atspi` will fail with:
+> ```text
+> ModuleNotFoundError: No module named 'gi'
+> ```
+>
+> **Recommended solution**:
+> - Run directly with `/usr/bin/python3`, or
+> - Create virtual environments with system site-packages enabled:
+>   ```bash
+>   python3 -m venv .venv --system-site-packages
+>   source .venv/bin/activate
+>   ```
+
+---
+
+### Running the AT-SPI Prototype
+
+From the root of the repository, execute:
 
 ```bash
 /usr/bin/python3 -m accessibility.atspi
 ```
 
-You should see:
+Expected startup output:
 
 ```text
 Parmer AT-SPI listener started.
 Waiting for text input...
 ```
 
-Then focus a text field in an accessible application and type.
-
-The current prototype should receive events similar to:
-
-```text
-object:text-changed:insert
-object:text-caret-moved
-```
-
-and print information about the active text object.
+**Verification steps**:
+1. Open any accessible application (such as GNOME Text Editor, Chromium, or Telegram).
+2. Click into an editable text field and type a few words.
+3. Observe terminal output. You should see incoming signals:
+   ```text
+   object:text-changed:insert
+   object:text-caret-moved
+   ```
+   along with current text, cursor position, and application metadata.
 
 ---
 
-# How the Current Text Tracking Works
+## 3. How to Contribute
 
-The important part of the current implementation is the distinction between `Atspi.Accessible` and the `Atspi.Text` interface.
+### Finding Work to Do
 
-An accessible object can implement the Text interface:
+#### Immediate Priorities
+
+If you want to contribute code right now, these five areas provide the highest leverage:
+
+1. **Priority 1: TextTracker Reliability**:
+   - Harden `accessibility/` and `core/text_tracker.py`.
+   - Safely handle stale objects, focus transfers, selection changes, and fast typing.
+2. **Priority 2: Keystroke Debouncer**:
+   - Implement `core/debouncer.py` to buffer rapid keystrokes and cancel obsolete checks.
+3. **Priority 3: Local LanguageTool Integration**:
+   - Build `engines/languagetool.py` to communicate asynchronously with a local LanguageTool server.
+4. **Priority 4: Suggestion Data Model**:
+   - Implement `core/suggestions.py` with offset preservation and replacement candidates.
+5. **Priority 5: Automated Test Suite**:
+   - Write unit tests for text tracking, debouncing, offset calculations, and error resilience.
+
+#### By Experience Level
+
+- **Beginner-Friendly**:
+  - Improve documentation, architecture guides, and setup instructions.
+  - Add unit tests for `core/` utility functions.
+  - Test Parmer across different applications and file compatibility reports.
+  - Enhance debug logging and error messaging.
+- **Intermediate**:
+  - Implement the keystroke debouncer.
+  - Build the LanguageTool engine integration.
+  - Refactor `TextTracker` into a clean state machine.
+  - Implement offset transformation helpers for Unicode strings.
+- **Advanced**:
+  - Handle complex AT-SPI edge cases and multi-process lifecycle events.
+  - Implement suggestion application via `Atspi.EditableText`.
+  - Design the asynchronous worker queue to keep the GLib event loop unblocked.
+  - Package Parmer as a Flatpak with necessary accessibility session permissions.
+
+#### Contribution Domains
+
+- **Accessibility**: AT-SPI event listening, focus tracking, text extraction, `EditableText` text replacement, and application compatibility workarounds.
+- **Core**: `TextTracker`, debouncing, context parsing, language detection, checker orchestration, and suggestion structures.
+- **Grammar Engines**: LanguageTool integration, alternative local rule engines, and Persian grammar support.
+- **User Interface**: GTK4/Libadwaita suggestion popovers, overlay badges, settings dialogs, and system tray integration.
+- **Testing**: Unit test suites, integration tests, application compatibility matrices, Wayland compliance, and memory leak profiling.
+- **Documentation**: Setup walkthroughs, architecture diagrams, troubleshooting guides, and API documentation.
+- **Packaging**: Flatpak manifests, Debian/Ubuntu `.deb` packaging, desktop entry files, and autostart services.
+
+---
+
+### Reporting Issues and Proposing Features
+
+- **Bug Reports**:
+  - Include your Linux distribution, desktop environment (GNOME, KDE, etc.), and session type (Wayland or X11).
+  - Specify the application where the issue occurred (including version).
+  - Provide minimal reproduction steps and any terminal logs.
+- **Feature Proposals**:
+  - Before writing code for significant architectural changes or new engines, **open an issue first**.
+  - Describe the problem you are solving, the proposed design, and any privacy or performance implications.
+
+---
+
+### Branching and Git Workflow
+
+1. Fork the repository and clone your fork locally.
+2. Create a feature branch off `main`:
+   ```bash
+   git checkout -b feat/debouncer-implementation
+   ```
+3. Keep your branch focused on a single topic. Avoid combining unrelated fixes into a single PR.
+4. Keep your branch up to date with `main`:
+   ```bash
+   git fetch origin
+   git rebase origin/main
+   ```
+
+---
+
+### Git Commit Standards
+
+Write focused, descriptive commit messages following the Conventional Commits style:
 
 ```text
-Atspi.Accessible
-       │
-       └── Atspi.Text
+<type>: <short summary in imperative mood>
+
+[optional detailed body explaining *why* the change was made]
 ```
 
-However, PyGObject's `Accessible.get_text()` is an overridden method with a different meaning:
+#### Allowed Types
+- `feat`: A new user-facing or technical feature
+- `fix`: A bug fix
+- `test`: Adding or correcting tests
+- `refactor`: Code change that neither fixes a bug nor adds a feature
+- `docs`: Documentation updates
+- `chore`: Build scripts, packaging, or maintenance tasks
 
+#### Examples of Good Commits
+```text
+feat: add AT-SPI text tracking
+fix: handle stale accessibility objects gracefully
+feat: implement keystroke debouncer with configurable delay
+feat: add local LanguageTool engine integration
+test: add unit tests for TextTracker offset calculation
+```
+
+#### Anti-Patterns to Avoid
+Do not combine unrelated architectural changes into a single mega-commit. Avoid commits like:
+```text
+# BAD: Combining multiple distinct concerns
+git commit -m "UI redesign + AT-SPI rewrite + packaging + formatting"
+```
+
+---
+
+### Pull Request Process
+
+When submitting a pull request, ensure your description answers these 5 key questions:
+
+1. **What changed?** (High-level summary of your code changes)
+2. **Why was this change necessary?** (Problem statement or linked issue)
+3. **How was it tested?** (Manual steps, test commands, tested applications)
+4. **What known limitations or follow-up tasks remain?**
+5. **Does this introduce new dependencies or privacy concerns?**
+
+#### PR Guidelines
+- **Focused scope**: Keep PRs small and reviewable.
+- **Screenshots**: Include screenshots or animated GIFs for any visual/UI modifications.
+- **Reproduction**: For bug fixes, include reproduction steps demonstrating the fix.
+
+---
+
+### Submission Checklist
+
+Before submitting your PR, verify each item:
+
+- [ ] **Clear purpose**: The PR addresses a single well-defined task or issue.
+- [ ] **Layer separation**: Code strictly follows the `accessibility/`, `core/`, `engines/`, and `ui/` boundaries.
+- [ ] **No scope creep**: Unrelated formatting or refactoring is excluded.
+- [ ] **No regressions**: Existing prototype functionality still runs.
+- [ ] **Tested**: Changes have been tested against accessible desktop applications.
+- [ ] **Safe error handling**: Accessibility exceptions (`GLib.GError`, missing objects) are caught and handled.
+- [ ] **Minimal dependencies**: No new external dependencies were added without prior discussion.
+- [ ] **Strict privacy**: No user text is transmitted over the network without explicit opt-in.
+- [ ] **Documentation updated**: Inline docstrings and relevant markdown files reflect the changes.
+- [ ] **PR template completed**: The PR description thoroughly answers all 5 required questions.
+
+---
+
+## 4. Code Style and Technical Standards
+
+### Architectural Separation and Boundaries
+
+- **Never bundle everything into `main.py`**: Keep entry points lean.
+- **Maintain core independence**: `core/checker.py` must never have hardcoded logic for specific applications (e.g., special-casing Telegram). Context information should be passed in via generic data models (`core/context.py`).
+- **Keep UI decoupled from AT-SPI**: UI components must consume suggestion objects; they should never directly call `Atspi` methods.
+
+---
+
+### Critical AT-SPI2 Implementation Rules
+
+<!-- NOTE: Merged duplicate AT-SPI2 get_text explanation from Section 5 and former 'How the Current Text Tracking Works' -->
+
+> [!CAUTION]
+> **Do not call `obj.get_text(0, character_count)` directly on accessible objects.**
+
+In PyGObject's AT-SPI bindings, `Atspi.Accessible` overrides `get_text()` with the signature:
 ```python
 Atspi.Accessible.get_text(self) -> Atspi.Text
 ```
+This is **different** from the `Atspi.Text` interface method:
+```python
+Atspi.Text.get_text(self, start_offset: int, end_offset: int) -> str
+```
 
-The actual Text interface method is:
+Because accessible text widgets implement both interfaces, invoking:
+```python
+# INCORRECT: Resolves to Atspi.Accessible.get_text() and raises TypeError
+text = obj.get_text(0, character_count)
+```
+will cause PyGObject to resolve to the parameterless `Accessible.get_text()` override, throwing an argument mismatch error.
+
+#### Canonical Pattern for Reading Text
+Always invoke the interface methods explicitly by passing the object instance:
 
 ```python
-Atspi.Text.get_text(
-    self,
-    start_offset,
-    end_offset
-) -> str
+# CORRECT: Explicitly invoke the interface functions
+character_count = Atspi.Text.get_character_count(obj)
+caret_position  = Atspi.Text.get_caret_offset(obj)
+text_content    = Atspi.Text.get_text(obj, 0, character_count)
 ```
 
-Therefore the current code intentionally uses:
+Apply this rule whenever reading text, caret positions, or character counts from accessible objects.
+
+---
+
+### Object Lifetime and Error Recovery
+
+<!-- NOTE: Consolidated object lifetime guidance from Phase 1, Coding Guidelines, and Known Problems -->
+
+In Linux desktop environments, accessibility objects are volatile:
+- An application can close unexpectedly.
+- A popup, menu, or modal can vanish between an event notification and the read attempt.
+- Tabs or windows can be destroyed.
+
+This frequently triggers AT-SPI D-Bus errors such as:
+```text
+GDBus.Error:org.freedesktop.DBus.Error.UnknownObject: No such object path
+```
+
+#### Engineering Rule
+**An invalid or vanished accessibility object must never crash Parmer.** Treat missing or stale objects as a normal, recoverable condition:
 
 ```python
-Atspi.Text.get_text(obj, 0, character_count)
+try:
+    text = Atspi.Text.get_text(obj, 0, count)
+except Exception as err:
+    # Treat object loss as recoverable; reset tracker state gracefully
+    logger.debug("Failed to read text from transient object: %s", err)
+    return None
 ```
 
-instead of:
+---
+
+### Input Handling Policy
+
+- **Use AT-SPI2 exclusively for text access**: Do not implement global keyboard hooks (e.g., `XGrabKey`, `pynput`, or X11 record extensions).
+- **Wayland compliance**: Global key interception is blocked under Wayland by design for security. AT-SPI2 is the standardized, compositor-approved mechanism for accessibility and text observation.
+- **Applying corrections**: Use `Atspi.EditableText.insert_text()` and `delete_text()` rather than simulating virtual keyboard events.
+
+---
+
+### Dependencies and Abstraction Philosophy
+
+- **Avoid premature abstraction**: Do not build generic plugin frameworks or complex meta-programming architectures before the concrete feature exists. Solve today's problem with the cleanest minimal code.
+- **Evaluate every new dependency**: Before proposing a new library, verify:
+  - Can this be solved using the Python standard library?
+  - Is the library actively maintained and packageable on major Linux distributions?
+  - Does it introduce native compilation dependencies that complicate packaging?
+  - Does it function seamlessly under both Wayland and X11?
+
+---
+
+## 5. Testing Guidelines
+
+### Testing Scope
+
+Parmer currently lacks an automated test harness. Building one is an immediate priority. We need:
+
+1. **Unit tests (`tests/unit/`)**:
+   - `test_debouncer.py`: Ensure rapid events are delayed and obsolete checks cancelled.
+   - `test_suggestions.py`: Validate offset preservation, replacement ranges, and text slicing.
+   - `test_context.py`: Verify filtering of password fields and URL bars.
+2. **Integration tests (`tests/integration/`)**:
+   - Mock AT-SPI event streams to simulate typing sequences and focus changes.
+   - Test LanguageTool HTTP/process wrappers against sample text.
+
+---
+
+### Desktop and Application Compatibility Testing
+
+Because different GUI toolkits implement AT-SPI2 with varying degrees of fidelity, testing across diverse desktop environments is crucial:
+
+| Toolkit / Application | Key Verification Areas |
+| :--- | :--- |
+| **GTK4 / Libadwaita** | `Atspi.Text` extraction, `Atspi.EditableText` replacement, caret tracking. |
+| **GTK3** | Legacy GTK entry widgets, multi-line text views. |
+| **Qt5 / Qt6** | `QLineEdit`, `QTextEdit`, focus change reliability. |
+| **Chromium / Electron** | Web text inputs, contenteditable elements, multi-process accessibility bus. |
+| **Firefox (Gecko)** | Accessibility tree enablement, caret offset synchronization. |
+| **Telegram Desktop** | Custom Qt text widget handling and event emissions. |
+
+---
+
+### Performance and Edge Cases
+
+When profiling and testing, pay close attention to:
+- **Large buffers**: Verify performance when opening documents with tens of thousands of characters.
+- **Fast typing**: Stress-test debouncing during bursts of 100+ WPM typing.
+- **Unicode & Multilingual**: Test complex scripts, right-to-left languages (e.g., Persian, Arabic), emoji, and multi-byte UTF-8 sequences. Ensure string slice offsets remain strictly aligned with AT-SPI character offsets.
+- **Memory leaks**: Monitor memory usage over hours of desktop activity to ensure GLib event closures are properly garbage-collected.
+
+---
+
+## 6. Review Process
+
+### Review Criteria
+
+All pull requests are evaluated on:
+
+1. **Architectural integrity**: Strict adherence to the `accessibility` ↔ `core` ↔ `engines` ↔ `ui` boundary.
+2. **Robustness**: Proper handling of disappearing accessibility objects and D-Bus failures.
+3. **Privacy protection**: Absolute assurance that no text leaves the machine without explicit configuration.
+4. **Code clarity**: Readable, idiomatic Python with clean function contracts and docstrings.
+5. **Responsiveness**: Zero blocking operations on the GLib accessibility event thread.
+
+### UI Changes
+
+For any pull request modifying user interface components (`ui/`):
+- Attach before-and-after screenshots or screen recordings.
+- Test under both light and dark system themes (Libadwaita style compliance).
+- Ensure popovers and floating widgets do not steal focus from the user's active typing target.
+
+---
+
+## 7. Roadmap and Milestones
+
+### Development Roadmap (Phases 0–12)
+
+#### Phase 0 — Foundation
+> **Status: 🟢 Largely complete**
+
+- [x] Create repository and license
+- [x] Establish Python project directory structure
+- [x] Build accessibility integration layer
+- [x] Initialize AT-SPI2 D-Bus connection
+- [x] Discover active accessible desktop applications
+- [x] Listen for accessibility focus-changed events
+- [x] Listen for text-changed events (`object:text-changed:insert`)
+- [x] Listen for caret movement events (`object:text-caret-moved`)
+- [x] Detect and filter relevant text input objects
+- [x] Read active buffer text using `Atspi.Text`
+- [x] Read caret offset positions
+- [x] Track application name and accessible field name
+
+---
+
+#### Phase 1 — Robust Text Tracking
+> **Status: 🟡 Next Priority**
+
+- [ ] Separate raw AT-SPI event listening from state management
+- [ ] Decouple `TextTracker` from UI and engine concerns
+- [ ] Handle disappearing accessibility objects safely (`No such object path`)
+- [ ] Evict invalid/stale AT-SPI object references
+- [ ] Handle focus changes cleanly across applications
+- [ ] Filter out non-text accessibility roles (`filler`, `panel`, `window`)
+- [ ] Detect active text field switches reliably
+- [ ] Avoid redundant full-text buffer reads on minor changes
+- [ ] Track previous buffer snapshots to compute incremental diffs
+- [ ] Track selection ranges (start and end offsets)
+- [ ] Track cursor navigation across existing text
+- [ ] Gracefully handle applications with incomplete accessibility trees
+- [ ] Implement structured event data classes (replace raw print statements)
+
+---
+
+#### Phase 2 — Keystroke Debouncing
+> **Status: 🔴 Not implemented**
+
+Debouncing is essential to prevent overwhelming the grammar engine:
+
+```text
+User types: H -> He -> Hel -> Hell -> Hello
+Without debounce: 5 separate grammar check requests
+With debounce:    1 grammar check request after user pauses typing
+```
+
+- [ ] Implement a standalone `Debouncer` class in `core/`
+- [ ] Support configurable idle delay (e.g., 300–600ms)
+- [ ] Cancel outdated in-flight check tasks when new input arrives
+- [ ] Skip checks if the text buffer is unchanged
+- [ ] Prevent race conditions between asynchronous engine responses
+- [ ] Define debouncer behavior during pure cursor movement without text edits
+
+---
+
+#### Phase 3 — Grammar Engine Abstraction
+> **Status: 🟡 Skeleton exists**
+
+Decouple the checker pipeline from specific engine implementations:
+
+```text
+core/checker.py
+       │
+       ▼
+GrammarEngine (Abstract Interface)
+       ├── engines/languagetool.py
+       └── engines/future_engine.py
+```
+
+- [ ] Define abstract `GrammarEngine` base class
+- [ ] Standardize the checking contract: `check(text: str, language: str) -> List[Suggestion]`
+- [ ] Support asynchronous checking without blocking the main event loop
+- [ ] Implement engine lifecycle management (start, stop, health-check)
+
+---
+
+#### Phase 4 — Local LanguageTool Integration
+> **Status: 🟡 Planned**
+
+- [ ] Implement local LanguageTool runner / HTTP client in `engines/languagetool.py`
+- [ ] Automatically detect or launch a local LanguageTool server instance
+- [ ] Transmit buffer text to the local API endpoint
+- [ ] Parse LanguageTool JSON matches into standard Parmer suggestion models
+- [ ] Accurately map character offsets from LanguageTool matches
+- [ ] Extract replacement candidates and explanatory rule messages
+- [ ] Preserve rule categories (grammar, typography, spelling)
+- [ ] Handle local server connection errors gracefully
+- [ ] Ensure non-blocking execution via threads or `asyncio`
+
+---
+
+#### Phase 5 — Suggestion Data Model
+> **Status: 🟡 Planned**
+
+Create a clean, decoupled data structure for suggestions:
 
 ```python
-obj.get_text(0, character_count)
+class Suggestion:
+    start_offset: int        # Start character index in buffer
+    end_offset: int          # End character index in buffer
+    original_text: str       # Text flagged for correction
+    replacements: list[str]  # Candidate replacement strings
+    message: str             # User-facing explanation
+    rule_id: str             # Engine rule identifier
+    category: str            # Grammar, spelling, style, etc.
+    confidence: float        # Optional confidence score
 ```
 
-The same approach is used for the caret and character count:
-
-```python
-Atspi.Text.get_caret_offset(obj)
-
-Atspi.Text.get_character_count(obj)
-```
-
-This is an important implementation detail. Do not casually replace these calls with `obj.get_text(...)` without verifying the installed PyGObject bindings.
+- [ ] Implement immutable suggestion data structures
+- [ ] Ensure offsets remain valid across multi-byte Unicode strings
+- [ ] Implement suggestion collision and overlap resolution
+- [ ] Completely decouple suggestion representations from LanguageTool internals
 
 ---
 
-# Planned Grammar Checking Pipeline
+#### Phase 6 — Correction User Interface
+> **Status: 🔴 Not implemented**
 
-The intended flow is:
+Build native GTK4/Libadwaita desktop overlay components:
 
 ```text
-User types
-    │
-    ▼
-AT-SPI text-changed event
-    │
-    ▼
-TextTracker
-    │
-    ▼
-Debouncer
-    │
-    ▼
-Current text snapshot
-    │
-    ▼
-Grammar Checker
-    │
-    ▼
-Grammar Engine
-    │
-    ▼
-Suggestion objects
-    │
-    ▼
-UI
+          ┌───────────────────────────────────┐
+          │ has ──> have                      │
+          │ "Subject-verb agreement error"    │
+          │ [Apply]  [Ignore]  [Add to Dict]  │
+          └───────────────────────────────────┘
 ```
 
-The event listener should remain fast.
-
-Heavy work should happen outside the event callback whenever possible.
-
----
-
-# Privacy
-
-Parmer is intended to be **privacy-first**.
-
-Text entered into applications can contain:
-
-- private conversations
-- passwords or sensitive information
-- work documents
-- personal information
-- financial information
-- source code
-
-Therefore the architecture should prefer local processing.
-
-The initial grammar engine is planned to run locally.
-
-Online services or AI-based engines may be considered later, but they should be:
-
-- explicitly opt-in
-- clearly identified
-- configurable
-- documented
-- disabled by default unless there is a strong reason otherwise
-
-Do not introduce network transmission of user text without discussing the privacy implications.
+- [ ] Create floating suggestion popover widget (`ui/suggestion_popover.py`)
+- [ ] Calculate on-screen coordinates from AT-SPI caret bounding boxes
+- [ ] Implement keyboard and mouse correction selection
+- [ ] Add "Dismiss" and "Ignore Rule" actions
+- [ ] Support keyboard navigation between multiple active suggestions
+- [ ] Ensure accessibility compatibility for screen readers
 
 ---
 
-# Coding Guidelines
+#### Phase 7 — Applying Corrections
+> **Status: 🔴 Not implemented**
 
-## Keep responsibilities separated
+Apply chosen corrections directly back into the target application:
 
-Avoid putting everything into `main.py`.
+- [ ] Detect if the active object implements `Atspi.EditableText`
+- [ ] Test atomic text replacement: `delete_text(start, end)` followed by `insert_text(start, replacement)`
+- [ ] Restore and adjust caret position after replacement
+- [ ] Handle read-only fields gracefully (disable replacement actions)
+- [ ] Provide clipboard-based fallback when direct editing is unsupported
 
-Prefer:
+---
+
+#### Phase 8 — Context Awareness
+> **Status: 🔴 Not implemented**
+
+Filter and tailor checking based on the active input context:
+
+- [ ] Detect window title, application name, and accessible role
+- [ ] Automatically disable checking in password fields (`role == Atspi.Role.PASSWORD_TEXT`)
+- [ ] Disable checking in terminal emulators, code editors, and URL bars by default
+- [ ] Distinguish single-line inputs from multi-line text areas
+
+---
+
+#### Phase 9 — Multilingual Support
+> **Status: 🔴 Not implemented**
+
+- [ ] Add manual language selection in preferences
+- [ ] Implement automatic language detection for multi-lingual writers
+- [ ] Support checking documents with mixed languages
+- [ ] Design custom engine architecture for Persian grammar rules
+- [ ] Account for Right-to-Left (RTL) text layouts and cursor metrics
+
+---
+
+#### Phase 10 — Settings & Privacy Controls
+> **Status: 🔴 Not implemented**
+
+- [ ] System-wide enable/disable toggle
+- [ ] Per-application inclusion/exclusion lists
+- [ ] Engine selection (Local LanguageTool vs. future engines)
+- [ ] Configurable debounce delay slider
+- [ ] Ignored words (custom user dictionary)
+- [ ] Strict local privacy mode toggle
+
+---
+
+#### Phase 11 — Packaging & Distribution
+> **Status: 🔴 Not implemented**
+
+- [ ] Create Flatpak packaging manifest with D-Bus accessibility permissions
+- [ ] Build native Debian/Ubuntu (`.deb`) package recipes
+- [ ] Provide AppImage builds if beneficial
+- [ ] Install desktop entry (`.desktop`), icon assets, and systemd user service
+- [ ] Provide clean uninstallation routines
+
+---
+
+#### Phase 12 — Production Hardening
+> **Status: 🔴 Future**
+
+- [ ] Comprehensive unit and integration test coverage
+- [ ] Continuous Integration (CI) pipeline
+- [ ] Memory leak profiling over extended desktop sessions
+- [ ] CPU utilization benchmarks during heavy typing
+- [ ] Stress-testing on large text buffers (50,000+ characters)
+- [ ] Compatibility verification across Wayland compositors (GNOME Mutter, KDE KWin, Sway)
+- [ ] Structured diagnostic logging and `--debug` CLI flags
+
+---
+
+### Milestone Sequence (M0–M10)
+
+The high-level dependency tree guiding development:
 
 ```text
-accessibility/
-    accessibility concerns
-
-core/
-    application logic
-
-engines/
-    grammar engines
-
-ui/
-    user interface
+M0: AT-SPI Proof of Concept
+ │  ├── Event listening
+ │  ├── Focus tracking
+ │  ├── Text reading
+ │  └── Caret tracking
+ ▼
+M1: Reliable TextTracker
+ │  ├── State management
+ │  ├── Object lifetime safety
+ │  └── Toolkit compatibility
+ ▼
+M2: Keystroke Debouncer
+ ▼
+M3: Grammar Engine Abstraction
+ ▼
+M4: Local LanguageTool Integration
+ ▼
+M5: Suggestion Data Model
+ ▼
+M6: GTK4 / Libadwaita UI
+ ▼
+M7: Applying Corrections via AT-SPI
+ ▼
+M8: Settings & Privacy Controls
+ ▼
+M9: Desktop Packaging (Flatpak/Deb)
+ ▼
+M10: Production Hardening
 ```
 
 ---
 
-## Keep the core independent
+## 8. Release and Packaging
 
-For example, `core/checker.py` should not need to know that text originally came from Telegram.
+Parmer will eventually be distributed as a standalone desktop utility requiring zero manual Git cloning:
 
-It should receive structured data.
-
----
-
-## Avoid premature abstraction
-
-Do not create a framework for a feature that does not exist yet.
-
-Build the smallest clean abstraction that solves the current problem.
+- **Flatpak**: Primary target for cross-distribution deployment via Flathub.
+  - Requires permission: `--socket=session-bus` to communicate with `org.a11y.Bus`.
+- **Native Packages**: `.deb` (Debian/Ubuntu) and PKGBUILD (Arch Linux AUR).
+- **Background Service**: Optional `systemd --user` service unit to start Parmer automatically at login.
 
 ---
 
-## Avoid unnecessary dependencies
+## 9. Privacy, Security, and Ethics
 
-Before adding a dependency, consider:
+### Privacy-First Core Principle
 
-- Can the standard library solve this?
-- Is the dependency maintained?
-- Does it work well on Linux?
-- Does it work with Wayland?
-- Does it add significant complexity?
-- Is it required for the feature?
+Parmer operates on your most sensitive personal data: everything you type. This includes:
+- Private messages and emails
+- Passwords and two-factor recovery codes
+- Proprietary source code and business plans
+- Financial records and personal identifiers
 
----
-
-## Do not use global keyboard hooks for the core architecture
-
-Parmer is intended to use AT-SPI2 for system-wide text access.
-
-Avoid designing core functionality around global key interception.
-
-This is particularly important for modern Wayland environments.
+**Our architectural commitment**:
+1. **Local by default**: All grammar checking must execute locally on the user's machine by default.
+2. **Zero telemetry**: Parmer does not collect analytics, telemetry, or user keystroke samples.
+3. **No background network access**: The core accessibility and checking pipeline must function entirely offline.
 
 ---
 
-## Handle accessibility failures gracefully
+### Sensitive Input Handling
 
-Applications can:
-
-- disappear
-- restart
-- expose incomplete accessibility trees
-- provide stale objects
-- expose read-only text
-- implement accessibility differently
-
-None of these should make Parmer crash.
+- **Password protection**: Parmer must identify password fields (via accessibility roles or input hints) and completely bypass text tracking.
+- **Ignored applications**: Users must be able to blacklist specific applications (such as password managers, banking apps, or terminals) with a single click.
 
 ---
 
-# Git and Commit Guidelines
+### Remote and AI Engine Policy
 
-Keep commits focused.
+Any prospective remote service, cloud grammar checker, or AI-powered engine:
+- **Must be strictly opt-in**: Never enabled without explicit user action.
+- **Must be clearly documented**: Clear UI warnings detailing what data is sent and where.
+- **Must be swappable**: Users can disable network features while retaining local checking.
 
-Good:
+---
+
+### Community Standards
+
+We are committed to providing a welcoming, inclusive, and harassment-free environment for all contributors. Treat fellow contributors with respect, focus on constructive feedback, and collaborate in good faith.
+
+---
+
+## 10. Troubleshooting, Known Issues, and FAQ
+
+### Common Issues and Workarounds
+
+#### 1. `ModuleNotFoundError: No module named 'gi'`
+- **Cause**: Running with a Python interpreter (e.g. Homebrew/Linuxbrew or pyenv) that lacks system GObject Introspection bindings.
+- **Fix**: Run using system Python `/usr/bin/python3` or create your virtualenv with:
+  ```bash
+  python3 -m venv .venv --system-site-packages
+  ```
+
+#### 2. `GDBus.Error... UnknownObject: No such object path`
+- **Cause**: An accessible application closed or an ephemeral UI element vanished before Parmer could read its text.
+- **Fix**: Catch the exception and gracefully clear the tracked field reference. Do not allow D-Bus errors to bubble up and terminate the listener loop.
+
+#### 3. `TypeError` when calling `obj.get_text()`
+- **Cause**: Calling `obj.get_text(0, len)` hits PyGObject's `Accessible.get_text()` override rather than the `Text` interface.
+- **Fix**: Call `Atspi.Text.get_text(obj, 0, len)`. See [Critical AT-SPI2 Implementation Rules](#critical-at-spi2-implementation-rules).
+
+---
+
+### Open Research Questions
+
+Contributors are actively invited to investigate:
+
+1. **Toolkit Compatibility**: Which toolkits reliably expose `Atspi.EditableText` for direct replacement? How do Qt6 and Chromium handle multi-line caret metrics?
+2. **Selection State**: Can we reliably detect user text selections across all major toolkits via AT-SPI?
+3. **Unicode Offset Synchronization**: How do Python UTF-16 character indices map to AT-SPI character offsets when emojis or multi-byte glyphs are present?
+4. **Wayland Caret Coordinates**: How can we reliably compute screen coordinates for caret popovers across different Wayland compositors?
+
+---
+
+## 11. Future Ideas (Exploratory)
+
+These are prospective architectural concepts under consideration:
+
+### Persian Grammar Checking
+A specialized rule engine tailored to Persian grammar rules, half-space (ZWNJ) orthography, and verb conjugation nuances:
+```text
+Persian text  ──>  Language Detector  ──>  Persian Engine  ──>  Suggestions
+```
+
+### Optional AI Engine
+An optional, opt-in local or remote LLM engine providing:
+- High-level sentence rephrasing and tone adjustments
+- Contextual idiom corrections
+- Detailed explanations for grammar suggestions
+
+### Per-Application Configuration
+Granular user profiles defining checking behavior per application:
+```text
+Telegram Desktop     ──> Enabled
+Web Browser          ──> Enabled
+Code Editors / IDEs  ──> Disabled
+Terminals            ──> Disabled
+Password Managers    ──> Disabled
+```
+
+### Custom Dictionaries
+- Personal user dictionaries for custom terminology
+- Domain-specific dictionaries (medical, legal, software development)
+- Ignored words list
+
+### Writing Style Analysis
+Advanced heuristic style metrics:
+- Passive voice detection
+- Redundancy and repeated word identification
+- Sentence readability scores
+- Tone and formality indicators
+
+---
+
+## 12. Final Note
+
+Parmer is at a pivotal moment. The foundational challenge—capturing text system-wide on Linux without invasive hooks—has been solved through AT-SPI2. Our immediate goal is not to rush a bloated UI, but to build an unshakeable, modular text-processing pipeline:
 
 ```text
-feat: add AT-SPI text tracking
-fix: handle stale accessibility objects
-feat: add text debouncer
-feat: add LanguageTool engine
-test: add TextTracker tests
+AT-SPI2  ──>  TextTracker  ──>  Debouncer  ──>  Grammar Engine  ──>  Suggestions  ──>  UI
 ```
 
-Avoid mixing unrelated changes into one commit.
+Every layer offers exciting challenges, from low-level D-Bus accessibility tuning to high-level GTK4 design.
 
-For example, do not combine:
+If you have an idea that isn't covered in this roadmap, **open an issue and share your proposal**.
 
-```text
-UI redesign
-+ AT-SPI rewrite
-+ packaging
-+ unrelated formatting
-```
-
-in one commit.
-
----
-
-# Issues and Pull Requests
-
-Before opening a PR:
-
-1. Explain what the change does.
-2. Explain why it is needed.
-3. Keep the PR focused.
-4. Test the changed functionality.
-5. Mention known limitations.
-6. Include screenshots for UI changes when useful.
-7. Include reproduction steps for bug fixes.
-
-A useful PR description should answer:
-
-```text
-What changed?
-
-Why?
-
-How was it tested?
-
-What remains?
-
-Does it introduce any new dependency or privacy concern?
-```
-
----
-
-# Contribution Checklist
-
-Before submitting a PR:
-
-- [ ] The change has a clear purpose.
-- [ ] The code follows the project structure.
-- [ ] No unrelated changes are included.
-- [ ] Existing functionality still works.
-- [ ] New behavior has been tested.
-- [ ] Errors are handled appropriately.
-- [ ] No unnecessary dependency was introduced.
-- [ ] No user text is sent to an external service unexpectedly.
-- [ ] Documentation was updated if necessary.
-- [ ] The PR description explains the change.
-
----
-
-# Known Problems and Open Questions
-
-These are intentionally open for contributors.
-
-## AT-SPI compatibility
-
-Different applications expose accessibility information differently.
-
-Questions to investigate:
-
-- Which GTK applications expose editable text reliably?
-- How well does Chromium expose text fields?
-- How well does Firefox expose text fields?
-- How well does Telegram expose text fields?
-- How do Qt applications behave?
-- Which applications expose selection information?
-- Which applications support EditableText?
-
----
-
-## Object lifetime
-
-AT-SPI objects can disappear between receiving an event and processing it.
-
-The system needs robust handling for:
-
-```text
-event received
-      ↓
-object disappears
-      ↓
-read operation fails
-```
-
-This should be treated as a normal recoverable condition.
-
----
-
-## Performance
-
-The system must remain lightweight.
-
-Potential performance concerns:
-
-- event frequency
-- large text fields
-- frequent cursor movement
-- grammar-check frequency
-- LanguageTool latency
-- UI updates
-
----
-
-## Text offsets
-
-Grammar engines return offsets into strings.
-
-AT-SPI also uses offsets.
-
-Parmer needs to carefully preserve these offsets when:
-
-- text changes
-- Unicode characters are involved
-- corrections are applied
-- cursor moves
-- multiple suggestions exist
-
-Unicode and multilingual text must be tested thoroughly.
-
----
-
-## Password fields
-
-Parmer must avoid processing sensitive fields such as password inputs.
-
-This should be handled conservatively at the accessibility layer/context layer.
-
----
-
-# Future Ideas
-
-These are ideas, not current commitments.
-
-## Persian grammar checking
-
-A dedicated Persian grammar system could eventually be added.
-
-Possible architecture:
-
-```text
-Persian text
-     ↓
-Language detection
-     ↓
-Persian engine
-     ↓
-Suggestions
-```
-
----
-
-## Optional AI engine
-
-AI could eventually provide:
-
-- rewriting
-- style suggestions
-- advanced contextual corrections
-- explanations
-
-However, this should remain separate from the basic local grammar-checking pipeline.
-
-A user should be able to use Parmer without sending their text to an AI service.
-
----
-
-## Per-application configuration
-
-Possible settings:
-
-```text
-Telegram      enabled
-Browser       enabled
-Code editor   disabled
-Password      disabled
-Terminal      disabled
-```
-
----
-
-## Custom dictionaries
-
-Possible features:
-
-- personal dictionary
-- technical vocabulary
-- programming terms
-- names
-- ignored words
-
----
-
-## Writing style
-
-Future style checks could include:
-
-- repeated words
-- passive voice
-- readability
-- unnecessary words
-- punctuation
-- tone
-
-These should be separate from the core grammar engine.
-
----
-
-# Suggested Milestones
-
-A practical development sequence is:
-
-```text
-M0  AT-SPI proof of concept
- │
- ├── event listening
- ├── focus tracking
- ├── text reading
- └── caret tracking
- │
- ▼
-M1  Reliable TextTracker
- │
- ├── state management
- ├── object lifetime
- ├── selection
- └── application compatibility
- │
- ▼
-M2  Debouncer
- │
- ▼
-M3  Grammar engine abstraction
- │
- ▼
-M4  Local LanguageTool
- │
- ▼
-M5  Suggestion model
- │
- ▼
-M6  GTK4/Libadwaita UI
- │
- ▼
-M7  Applying corrections
- │
- ▼
-M8  Settings + privacy controls
- │
- ▼
-M9  Packaging
- │
- ▼
-M10 Production hardening
-```
-
----
-
-# How to Pick a Task
-
-If you are new to the project, start with one of these:
-
-### Beginner-friendly
-
-- improve documentation
-- add tests
-- investigate application compatibility
-- improve error messages
-- add logging
-- document AT-SPI behavior
-
-### Intermediate
-
-- TextTracker improvements
-- debouncer
-- suggestion data model
-- LanguageTool integration
-- application compatibility handling
-
-### Advanced
-
-- AT-SPI edge cases
-- EditableText correction
-- asynchronous architecture
-- performance optimization
-- packaging
-- accessibility compatibility across desktop environments
-
----
-
-# Final Note
-
-Parmer is currently at a very early but important stage.
-
-The system-wide text acquisition problem has been successfully demonstrated through AT-SPI2. The next goal is not to immediately build a huge UI or add AI; it is to turn the working prototype into a reliable pipeline:
-
-```text
-AT-SPI2
-   ↓
-TextTracker
-   ↓
-Debouncer
-   ↓
-Grammar Engine
-   ↓
-Suggestions
-   ↓
-UI
-```
-
-Contributions are welcome at every layer.
-
-If you want to work on something that is not explicitly listed here, open an issue first and describe the idea. This helps keep the architecture coherent while the project is still taking shape.
-
-**Thanks for helping build a proper Linux-native grammar checker. 🐧**
+**Thank you for helping build a first-class, Linux-native grammar checker! 🐧**
