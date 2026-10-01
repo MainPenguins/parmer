@@ -23,13 +23,12 @@ session = ActiveSession()
 
 
 def on_apply_requested(index):
-    global active_object
-
     print(f"Apply requested: {index}")
 
-    context, suggestions = active_state
+    context = session.context
+    suggestions = session.suggestions
 
-    if active_object is None:
+    if session.obj is None:
         print("Apply ignored: no active field")
 
         return
@@ -55,13 +54,13 @@ def on_apply_requested(index):
 
     try:
         Atspi.EditableText.delete_text(
-            active_object,
+            session.obj,
             suggestions[index].start,
             suggestions[index].end,
         )
 
         Atspi.EditableText.insert_text(
-            active_object,
+            session.obj,
             suggestions[index].start,
             replacement,
             len(replacement),
@@ -87,7 +86,7 @@ def build_overlay_lines(context, suggestions):
 
 
 def on_text_checked(suggestions, checked):
-    global active_state
+    # global active_state
 
     if tracker.text != checked.text:
         return False
@@ -97,7 +96,8 @@ def on_text_checked(suggestions, checked):
     for suggestion in suggestions:
         print(suggestion)
 
-    active_state = (checked, suggestions)
+    session.context = checked
+    session.suggestions = suggestions
 
     if suggestions:
         overlay.show(
@@ -129,7 +129,7 @@ def on_text_ready():
 
 
 def on_event(event):
-    global active_object
+    # global active_object
 
     try:
         if not should_handle(event):
@@ -143,7 +143,8 @@ def on_event(event):
         if not is_text_field(obj):
             return
 
-        active_object = obj
+        session.obj = obj
+        session.generation += 1
 
         changed = tracker.update(obj)
 
