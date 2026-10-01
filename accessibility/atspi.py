@@ -3,7 +3,7 @@ import threading
 import gi
 
 gi.require_version("Atspi", "2.0")
-
+from core.session import ActiveSession
 from gi.repository import Atspi, GLib
 from core.checker import Checker
 from engines.languagetool import LanguageToolEngine
@@ -19,8 +19,7 @@ debouncer = Debouncer()
 checker = Checker(engine=LanguageToolEngine())
 overlay = Overlay()
 
-active_object = None
-active_state = (None, [])
+session = ActiveSession()
 
 
 def on_apply_requested(index):
