@@ -28,6 +28,10 @@ def on_apply_requested(index):
     context = session.context
     suggestions = session.suggestions
 
+    if session.checked_generation != session.generation:
+        print("Apply ignored: stale suggestion")
+        return
+
     if session.obj is None:
         print("Apply ignored: no active field")
 
@@ -102,6 +106,7 @@ def on_text_checked(suggestions, checked, generation):
 
     session.context = checked
     session.suggestions = suggestions
+    session.checked_generation = generation
 
     if suggestions:
         overlay.show(

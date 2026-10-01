@@ -7,6 +7,7 @@ class ActiveSession:
     context: object | None = None
     suggestions: list = field(default_factory=list)
     generation: int = 0
+    checked_generation: int = 0
 
     def reset(self):
         self.obj = None
