@@ -150,9 +150,12 @@ def on_event(event):
             return
 
         session.obj = obj
-        session.generation += 1
 
         changed = tracker.update(obj)
+
+        if tracker.context_changed:
+            session.generation += 1
+            print(f"Generation: {session.generation}")
 
         if changed:
             tracker.print(event.type)

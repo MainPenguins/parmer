@@ -41,6 +41,7 @@ class TextTracker:
         self.selection_end = 0
 
         self.field_changed = False
+        self.context_changed = False
         self.text_changed = False
         self.cursor_moved = False
         self.selection_changed = False
@@ -85,7 +86,10 @@ class TextTracker:
         self.text_changed = (
             self.field_changed or text != self.text
         )
-
+        self.context_changed = (
+            self.field_changed
+            or self.text_changed
+        )
         self.cursor_moved = (
             self.field_changed or cursor != self.cursor
         )
