@@ -1,32 +1,137 @@
+import threading
+
 import gi
 
 gi.require_version("Atspi", "2.0")
 
-from gi.repository import Atspi
+from gi.repository import Atspi, GLib
 from core.checker import Checker
 from engines.languagetool import LanguageToolEngine
 from accessibility.focus import should_handle
 from accessibility.text import is_text_field
 from core.debouncer import Debouncer
 from core.text_tracker import TextTracker
+from ui.overlay import Overlay
 
 
 tracker = TextTracker()
 debouncer = Debouncer()
 checker = Checker(engine=LanguageToolEngine())
+overlay = Overlay()
 
-def on_text_ready():
-    context = tracker.get_context()
+active_object = None
+active_state = (None, [])
 
-    suggestions = checker.check(context)
+
+def on_apply_requested(index):
+    global active_object
+
+    print(f"Apply requested: {index}")
+
+    context, suggestions = active_state
+
+    if active_object is None:
+        print("Apply ignored: no active field")
+
+        return
+
+    if context is None or tracker.text != context.text:
+        print("Apply ignored: text changed")
+
+        return
+
+    if index < 0 or index >= len(suggestions):
+        print("Apply ignored: bad index")
+
+        return
+
+    replacements = suggestions[index].replacements
+
+    if not replacements:
+        print("Apply ignored: no replacement")
+
+        return
+
+    replacement = replacements[0]
+
+    try:
+        Atspi.EditableText.delete_text(
+            active_object,
+            suggestions[index].start,
+            suggestions[index].end,
+        )
+
+        Atspi.EditableText.insert_text(
+            active_object,
+            suggestions[index].start,
+            replacement,
+            len(replacement),
+        )
+
+        print("Applied.")
+    except Exception as error:
+        print(f"Apply error: {error}")
+
+
+def build_overlay_lines(context, suggestions):
+    lines = []
+
+    for suggestion in suggestions:
+        original = context.text[suggestion.start:suggestion.end]
+
+        if suggestion.replacements:
+            lines.append(f"{original} -> {suggestion.replacements[0]}")
+        else:
+            lines.append(original)
+
+    return lines
+
+
+def on_text_checked(suggestions, checked):
+    global active_state
+
+    if tracker.text != checked.text:
+        return False
 
     print("Suggestions:")
 
     for suggestion in suggestions:
         print(suggestion)
 
+    active_state = (checked, suggestions)
+
+    if suggestions:
+        overlay.show(
+            checked.application or "",
+            build_overlay_lines(checked, suggestions),
+        )
+
+    return False
+
+
+def check_text(context):
+    try:
+        suggestions = checker.check(context)
+    except Exception as error:
+        print(f"Grammar check error: {error}")
+        return
+
+    GLib.idle_add(on_text_checked, suggestions, context)
+
+
+def on_text_ready():
+    context = tracker.get_context()
+
+    threading.Thread(
+        target=check_text,
+        args=(context,),
+        daemon=True,
+    ).start()
+
 
 def on_event(event):
+    global active_object
+
     try:
         if not should_handle(event):
             return
@@ -38,6 +143,8 @@ def on_event(event):
 
         if not is_text_field(obj):
             return
+
+        active_object = obj
 
         changed = tracker.update(obj)
 
@@ -68,6 +175,8 @@ caret_listener.register(
 text_listener.register(
     "object:text-changed"
 )
+
+overlay.on_apply_requested(on_apply_requested)
 
 print("Parmer AT-SPI listener started.")
 print("Waiting for text input...")

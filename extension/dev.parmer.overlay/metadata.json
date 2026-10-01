@@ -1,0 +1,9 @@
+{
+  "uuid": "dev.parmer.overlay",
+  "name": "Parmer Overlay",
+  "description": "Shows Parmer grammar suggestions above the focused window.",
+  "shell-version": [
+    "50"
+  ],
+  "url": "https://github.com/MainPenguins/parmer"
+}
