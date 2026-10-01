@@ -85,8 +85,12 @@ def build_overlay_lines(context, suggestions):
     return lines
 
 
-def on_text_checked(suggestions, checked):
+def on_text_checked(suggestions, checked, generation):
     # global active_state
+
+    if generation != session.generation:
+        print("Ignoring stale result")
+        return False
 
     if tracker.text != checked.text:
         return False
@@ -108,24 +112,21 @@ def on_text_checked(suggestions, checked):
     return False
 
 
-def check_text(context):
+def check_text(context, generation):
     try:
         suggestions = checker.check(context)
     except Exception as error:
         print(f"Grammar check error: {error}")
         return
 
-    GLib.idle_add(on_text_checked, suggestions, context)
+    GLib.idle_add(on_text_checked, suggestions, context, generation)
 
 
 def on_text_ready():
     context = tracker.get_context()
+    generation = session.generation
 
-    threading.Thread(
-        target=check_text,
-        args=(context,),
-        daemon=True,
-    ).start()
+    threading.Thread(target=check_text, args=(context, generation), daemon=True).start()
 
 
 def on_event(event):
