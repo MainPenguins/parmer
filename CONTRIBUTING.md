@@ -135,9 +135,9 @@ Parmer runs as a native Linux desktop utility, respecting your system theme, des
 
 ### Status at a Glance
 
-> **Current Stage: Robust AT-SPI2 text tracking (Phase 1 complete)**
+> **Current Stage: Working AT-SPI2 text-tracking proof of concept (PoC)**
 >
-> Parmer is **not yet a finished grammar checker**. System-wide text observation, caret/selection tracking, role filtering, and change detection are working reliably. The next step is the debounced processing pipeline that connects these events to a local grammar engine (Phase 2).
+> Parmer is **not yet a finished grammar checker**. We have proven system-wide text observation and caret tracking. We are currently building a debounced processing pipeline to connect those events to a local grammar engine.
 
 | Component / Subsystem | Status | Details |
 | :--- | :--- | :--- |
@@ -147,8 +147,7 @@ Parmer runs as a native Linux desktop utility, respecting your system theme, des
 | **Text-change events** | 🟢 Working | Receives and parses `object:text-changed:insert` events. |
 | **Caret tracking** | 🟢 Working | Receives and parses `object:text-caret-moved` offset changes. |
 | **Reading accessible text** | 🟢 Working | Successfully extracts active buffer text using `Atspi.Text`. |
-| **TextTracker state manager** | 🟢 Working | Holds active application, field, role, text, cursor, and selection; detects field/text/cursor/selection changes and computes change spans. |
-| **Password field filtering** | 🟢 Working | `PASSWORD_TEXT`, terminals, and static text are rejected by the role allowlist in `accessibility/text.py` and never read. |
+| **TextTracker state manager** | 🟢 Prototype | Holds active application name, field, text, and cursor index. |
 | **Event debouncing** | 🔴 Not implemented | Pending: prevents checking text on every keystroke. |
 | **Grammar engine abstraction** | 🟡 Skeleton / Planned | Generic engine interface planned in `core/checker.py`. |
 | **Local LanguageTool engine** | 🟡 Skeleton / Planned | Integration wrapper planned in `engines/languagetool.py`. |
@@ -197,21 +196,15 @@ class TextTracker:
     def __init__(self):
         self.application = None
         self.field = None
-        self.role = None
         self.text = ""
         self.cursor = 0
-        self.selection_start = 0
-        self.selection_end = 0
 ```
 
 When an accessible object updates, `TextTracker` captures:
 - **Application name**: Identifies the source window or process.
 - **Field name / accessible role**: Identifies the specific input element.
 - **Cursor position**: Current caret integer offset.
-- **Selection range**: Current selection start/end offsets.
 - **Text buffer**: Snapshot of the current text string.
-
-`TextTracker.update()` reports whether anything actually changed by comparing against the previous snapshot and flagging `field_changed`, `text_changed`, `cursor_moved`, and `selection_changed`. Text changes additionally produce a `changed_span()` result (start offset, old end, new end) which identifies the exact modified region for later incremental processing.
 
 ---
 
@@ -444,10 +437,9 @@ Waiting for text input...
 
 If you want to contribute code right now, these five areas provide the highest leverage:
 
-1. **Priority 1: TextTracker Reliability (largely done — remaining items)**:
-   - Avoid redundant full-text buffer reads on caret/selection-only changes.
-   - Gracefully handle applications with incomplete accessibility trees.
-   - Replace raw print statements with structured event data classes.
+1. **Priority 1: TextTracker Reliability**:
+   - Harden `accessibility/` and `core/text_tracker.py`.
+   - Safely handle stale objects, focus transfers, selection changes, and fast typing.
 2. **Priority 2: Keystroke Debouncer**:
    - Implement `core/debouncer.py` to buffer rapid keystrokes and cancel obsolete checks.
 3. **Priority 3: Local LanguageTool Integration**:
@@ -764,19 +756,19 @@ For any pull request modifying user interface components (`ui/`):
 ---
 
 #### Phase 1 — Robust Text Tracking
-> **Status: 🟢 Largely complete** (remaining items carried into Phase 2)
+> **Status: 🟡 Next Priority**
 
-- [x] Separate raw AT-SPI event listening from state management
-- [x] Decouple `TextTracker` from UI and engine concerns
-- [x] Handle disappearing accessibility objects safely (`No such object path`)
-- [x] Evict invalid/stale AT-SPI object references (tracker stores only plain values, no stale object references)
-- [x] Handle focus changes cleanly across applications (focus-lost events ignored via `accessibility/focus.py`)
-- [x] Filter out non-text accessibility roles (`filler`, `panel`, `window`) via editable-role allowlist
-- [x] Detect active text field switches reliably (`field_changed` detection in `TextTracker`)
+- [ ] Separate raw AT-SPI event listening from state management
+- [ ] Decouple `TextTracker` from UI and engine concerns
+- [ ] Handle disappearing accessibility objects safely (`No such object path`)
+- [ ] Evict invalid/stale AT-SPI object references
+- [ ] Handle focus changes cleanly across applications
+- [ ] Filter out non-text accessibility roles (`filler`, `panel`, `window`)
+- [ ] Detect active text field switches reliably
 - [ ] Avoid redundant full-text buffer reads on minor changes
-- [x] Track previous buffer snapshots to compute incremental diffs (`changed_span()` in `core/text_tracker.py`)
-- [x] Track selection ranges (start and end offsets)
-- [x] Track cursor navigation across existing text
+- [ ] Track previous buffer snapshots to compute incremental diffs
+- [ ] Track selection ranges (start and end offsets)
+- [ ] Track cursor navigation across existing text
 - [ ] Gracefully handle applications with incomplete accessibility trees
 - [ ] Implement structured event data classes (replace raw print statements)
 
@@ -903,8 +895,8 @@ Apply chosen corrections directly back into the target application:
 Filter and tailor checking based on the active input context:
 
 - [ ] Detect window title, application name, and accessible role
-- [x] Automatically disable checking in password fields (`role == Atspi.Role.PASSWORD_TEXT`) — enforced at the accessibility layer via the editable-role allowlist in `accessibility/text.py`
-- [ ] Disable checking in terminal emulators, code editors, and URL bars by default (terminals are already excluded)
+- [ ] Automatically disable checking in password fields (`role == Atspi.Role.PASSWORD_TEXT`)
+- [ ] Disable checking in terminal emulators, code editors, and URL bars by default
 - [ ] Distinguish single-line inputs from multi-line text areas
 
 ---
