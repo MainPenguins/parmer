@@ -37,3 +37,8 @@ class ActiveSession:
         with self._lock:
             self.generation += 1
             return self.generation
+
+
+    def get_generation(self):
+        with self._lock:
+            return self.generation

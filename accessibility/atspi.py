@@ -14,6 +14,9 @@ from core.text_tracker import TextTracker
 from ui.overlay import Overlay
 
 
+from core.check_request import CheckRequest
+
+
 tracker = TextTracker()
 debouncer = Debouncer()
 checker = Checker(engine=LanguageToolEngine())
@@ -21,6 +24,12 @@ overlay = Overlay()
 
 session = ActiveSession()
 
+
+def create_check_request():
+    context = tracker.get_context()
+    generation = session.get_snapshot()["generation"]
+
+    return CheckRequest(context=context, generation=generation)
 
 def on_apply_requested(index):
     print(f"Apply requested: {index}")
@@ -111,21 +120,21 @@ def on_text_checked(suggestions, checked, generation):
     return False
 
 
-def check_text(context, generation):
+def check_text(request):
+
     try:
-        suggestions = checker.check(context)
+        suggestions = checker.check(request.context)
     except Exception as error:
         print(f"Grammar check error: {error}")
         return
 
-    GLib.idle_add(on_text_checked, suggestions, context, generation)
+    GLib.idle_add(on_text_checked, suggestions, request.context, request.generation)
 
 
 def on_text_ready():
-    context = tracker.get_context()
-    generation = session.get_snapshot()["generation"]
+    request = create_check_request()
 
-    threading.Thread(target=check_text, args=(context, generation), daemon=True).start()
+    threading.Thread(target=check_text, args=(request,), daemon=True).start()
 
 
 def on_event(event):
