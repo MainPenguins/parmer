@@ -38,6 +38,12 @@ class ActiveSession:
             self.generation += 1
             return self.generation
 
+    def invalidate(self):
+        with self._lock:
+            self.context = None
+            self.suggestions.clear()
+            self.checked_generation = -1
+
 
     def get_generation(self):
         with self._lock:

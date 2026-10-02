@@ -94,14 +94,14 @@ def build_overlay_lines(context, suggestions):
     return lines
 
 
-def on_text_checked(suggestions, checked, generation):
+def on_text_checked(suggestions, request):
     # global active_state
 
-    if generation != session.get_snapshot()["generation"]:
+    if request.generation != session.get_snapshot()["generation"]:
         print("Ignoring stale result")
         return False
 
-    if tracker.text != checked.text:
+    if tracker.text != request.context.text:
         return False
 
     print("Suggestions:")
@@ -109,13 +109,10 @@ def on_text_checked(suggestions, checked, generation):
     for suggestion in suggestions:
         print(suggestion)
 
-    session.update_suggestions(checked, suggestions, generation)
+    session.update_suggestions(request.context, suggestions, request.generation)
 
     if suggestions:
-        overlay.show(
-            checked.application or "",
-            build_overlay_lines(checked, suggestions),
-        )
+        overlay.show(request.context.application or "", build_overlay_lines(request.context, suggestions))
 
     return False
 
@@ -128,7 +125,7 @@ def check_text(request):
         print(f"Grammar check error: {error}")
         return
 
-    GLib.idle_add(on_text_checked, suggestions, request.context, request.generation)
+    GLib.idle_add(on_text_checked, suggestions, request)
 
 
 def on_text_ready():
@@ -158,6 +155,7 @@ def on_event(event):
 
         if tracker.context_changed:
             generation = session.increment_generation()
+            session.invalidate()
             print(f"Generation: {generation}")
 
         if changed:
