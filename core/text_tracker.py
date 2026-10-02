@@ -1,3 +1,5 @@
+import threading
+
 import gi
 
 gi.require_version("Atspi", "2.0")
@@ -32,6 +34,7 @@ def changed_span(old_text, new_text):
 
 class TextTracker:
     def __init__(self):
+        self._lock = threading.Lock()
         self.application = None
         self.field = None
         self.role = None
@@ -48,32 +51,33 @@ class TextTracker:
         self.span = None
 
     def update(self, obj):
-        try:
-            application = obj.get_application()
+        with self._lock:
+            try:
+                application = obj.get_application()
 
-            application_name = (
-                application.get_name()
-                if application
-                else "Unknown"
-            )
+                application_name = (
+                    application.get_name()
+                    if application
+                    else "Unknown"
+                )
 
-            character_count = Atspi.Text.get_character_count(obj)
+                character_count = Atspi.Text.get_character_count(obj)
 
-            text = Atspi.Text.get_text(obj, 0, character_count)
+                text = Atspi.Text.get_text(obj, 0, character_count)
 
-            cursor = Atspi.Text.get_caret_offset(obj)
+                cursor = Atspi.Text.get_caret_offset(obj)
 
-            selection_start = cursor
-            selection_end = cursor
+                selection_start = cursor
+                selection_end = cursor
 
-            if Atspi.Text.get_n_selections(obj) > 0:
-                selection = Atspi.Text.get_selection(obj, 0)
+                if Atspi.Text.get_n_selections(obj) > 0:
+                    selection = Atspi.Text.get_selection(obj, 0)
 
-                selection_start = selection.start_text
-                selection_end = selection.end_text
+                    selection_start = selection.start_text
+                    selection_end = selection.end_text
 
-        except Exception:
-            return False
+            except Exception:
+                return False
 
         same_field = (
             application_name == self.application
@@ -124,14 +128,8 @@ class TextTracker:
         return True
 
     def get_context(self):
-        return Context(
-            text=self.text,
-            cursor=self.cursor,
-            selection_start=self.selection_start,
-            selection_end=self.selection_end,
-            application=self.application,
-            field=self.field,
-        )
+        with self._lock:
+            return Context(text=self.text, cursor=self.cursor, selection_start=self.selection_start, selection_end=self.selection_end, application=self.application, field=self.field)
 
     def print(self, event_type):
         print("\033[2J\033[H", end="")
