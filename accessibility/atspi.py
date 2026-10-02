@@ -24,15 +24,15 @@ session = ActiveSession()
 
 def on_apply_requested(index):
     print(f"Apply requested: {index}")
+    state = session.get_snapshot()
+    context = state["context"]
+    suggestions = state["suggestions"]
 
-    context = session.context
-    suggestions = session.suggestions
-
-    if session.checked_generation != session.generation:
+    if state["checked_generation"] != state["generation"]:
         print("Apply ignored: stale suggestion")
         return
 
-    if session.obj is None:
+    if state["obj"] is None:
         print("Apply ignored: no active field")
 
         return
@@ -57,14 +57,10 @@ def on_apply_requested(index):
     replacement = replacements[0]
 
     try:
-        Atspi.EditableText.delete_text(
-            session.obj,
-            suggestions[index].start,
-            suggestions[index].end,
-        )
+        Atspi.EditableText.delete_text(state["obj"], suggestions[index].start, suggestions[index].end)
 
         Atspi.EditableText.insert_text(
-            session.obj,
+            state["obj"],
             suggestions[index].start,
             replacement,
             len(replacement),
@@ -92,7 +88,7 @@ def build_overlay_lines(context, suggestions):
 def on_text_checked(suggestions, checked, generation):
     # global active_state
 
-    if generation != session.generation:
+    if generation != session.get_snapshot()["generation"]:
         print("Ignoring stale result")
         return False
 
@@ -104,9 +100,7 @@ def on_text_checked(suggestions, checked, generation):
     for suggestion in suggestions:
         print(suggestion)
 
-    session.context = checked
-    session.suggestions = suggestions
-    session.checked_generation = generation
+    session.update_suggestions(checked, suggestions, generation)
 
     if suggestions:
         overlay.show(
@@ -129,7 +123,7 @@ def check_text(context, generation):
 
 def on_text_ready():
     context = tracker.get_context()
-    generation = session.generation
+    generation = session.get_snapshot()["generation"]
 
     threading.Thread(target=check_text, args=(context, generation), daemon=True).start()
 
@@ -149,13 +143,13 @@ def on_event(event):
         if not is_text_field(obj):
             return
 
-        session.obj = obj
+        session.set_object(obj)
 
         changed = tracker.update(obj)
 
         if tracker.context_changed:
-            session.generation += 1
-            print(f"Generation: {session.generation}")
+            generation = session.increment_generation()
+            print(f"Generation: {generation}")
 
         if changed:
             tracker.print(event.type)
