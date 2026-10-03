@@ -34,8 +34,4 @@ class CheckerService:
             if request_id != self._request_id:
                 return
 
-        GLib.idle_add(
-            callback,
-            suggestions,
-            request,
-        )
+        GLib.idle_add(callback, suggestions, request)
