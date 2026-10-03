@@ -3,17 +3,23 @@ import gi
 
 gi.require_version("Atspi", "2.0")
 
+# Testing something, dont touch it mate, thanks.
+# from ui.monitor import get_monitor_at_point
+
+
 from core.checker_service import CheckerService
 from core.session import ActiveSession
 from gi.repository import Atspi, GLib
 from core.checker import Checker
 from engines.languagetool import LanguageToolEngine
 from accessibility.focus import should_handle
-from accessibility.text import is_text_field
+from accessibility.text import (is_text_field, get_caret_rect)
 from core.debouncer import Debouncer
 from core.text_tracker import TextTracker
 from ui.overlay import Overlay
 
+
+# from accessibility.geometry import get_caret_rect
 
 from core.check_request import CheckRequest
 
@@ -26,7 +32,25 @@ checker_service = CheckerService(checker)
 overlay = Overlay()
 
 session = ActiveSession()
+popup_controller = None
+popup = None
 
+
+def set_popup_ui(controller, popup_backend):
+    global popup_controller, popup
+
+    popup_controller = controller
+    popup = popup_backend
+
+
+def show_popup_at_caret(caret):
+    if popup_controller is None or popup is None:
+        return
+
+    popup_controller.show_at_caret(
+        popup,
+        caret,
+    )
 
 def create_check_request():
     context = tracker.get_context()
@@ -120,17 +144,6 @@ def on_text_checked(suggestions, request):
     return False
 
 
-# def check_text(request):
-#
-#     try:
-#         suggestions = checker.check(request.context)
-#     except Exception as error:
-#         print(f"Grammar check error: {error}")
-#         return
-#
-#     GLib.idle_add(on_text_checked, suggestions, request)
-
-
 def on_text_ready():
     request = create_check_request()
 
@@ -155,6 +168,23 @@ def on_event(event):
         session.set_object(obj)
 
         changed = tracker.update(obj)
+        try:
+            rect = get_caret_rect(obj)
+            if rect:
+                print(
+                    f"Caret: "
+                    f"x={rect.x}, "
+                    f"y={rect.y}, "
+                    f"w={rect.width}, "
+                    f"h={rect.height}"
+                )
+            show_popup_at_caret(rect)
+
+        except Exception as error:
+            print(f"Caret error: {error}")
+            rect = None
+
+
 
         if tracker.context_changed:
             generation = session.increment_generation()
@@ -170,28 +200,32 @@ def on_event(event):
     except Exception as error:
         print(f"AT-SPI error: {error}")
 
+def start_atspi():
+    Atspi.init()
 
-Atspi.init()
+    focus_listener = Atspi.EventListener.new(on_event)
+    caret_listener = Atspi.EventListener.new(on_event)
+    text_listener = Atspi.EventListener.new(on_event)
 
-focus_listener = Atspi.EventListener.new(on_event)
-caret_listener = Atspi.EventListener.new(on_event)
-text_listener = Atspi.EventListener.new(on_event)
+    focus_listener.register(
+        "object:state-changed:focused"
+    )
 
-focus_listener.register(
-    "object:state-changed:focused"
-)
+    caret_listener.register(
+        "object:text-caret-moved"
+    )
 
-caret_listener.register(
-    "object:text-caret-moved"
-)
+    text_listener.register(
+        "object:text-changed"
+    )
 
-text_listener.register(
-    "object:text-changed"
-)
+    overlay.on_apply_requested(on_apply_requested)
 
-overlay.on_apply_requested(on_apply_requested)
+    print("Parmer AT-SPI listener started.")
+    print("Waiting for text input...")
 
-print("Parmer AT-SPI listener started.")
-print("Waiting for text input...")
+    Atspi.event_main()
 
-Atspi.event_main()
+
+if __name__ == "__main__":
+    start_atspi()
