@@ -1,8 +1,9 @@
-import threading
 
 import gi
 
 gi.require_version("Atspi", "2.0")
+
+from core.checker_service import CheckerService
 from core.session import ActiveSession
 from gi.repository import Atspi, GLib
 from core.checker import Checker
@@ -20,6 +21,8 @@ from core.check_request import CheckRequest
 tracker = TextTracker()
 debouncer = Debouncer()
 checker = Checker(engine=LanguageToolEngine())
+
+checker_service = CheckerService(checker)
 overlay = Overlay()
 
 session = ActiveSession()
@@ -117,21 +120,21 @@ def on_text_checked(suggestions, request):
     return False
 
 
-def check_text(request):
-
-    try:
-        suggestions = checker.check(request.context)
-    except Exception as error:
-        print(f"Grammar check error: {error}")
-        return
-
-    GLib.idle_add(on_text_checked, suggestions, request)
+# def check_text(request):
+#
+#     try:
+#         suggestions = checker.check(request.context)
+#     except Exception as error:
+#         print(f"Grammar check error: {error}")
+#         return
+#
+#     GLib.idle_add(on_text_checked, suggestions, request)
 
 
 def on_text_ready():
     request = create_check_request()
 
-    threading.Thread(target=check_text, args=(request,), daemon=True).start()
+    checker_service.check_async(request, on_text_checked)
 
 
 def on_event(event):
