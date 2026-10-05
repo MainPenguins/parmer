@@ -68,6 +68,7 @@ class LayerShellBackend:
             orientation=Gtk.Orientation.VERTICAL,
             spacing=8,
         )
+        box.add_css_class("popup-content")
 
         box.set_margin_top(12)
         box.set_margin_bottom(12)
@@ -77,6 +78,7 @@ class LayerShellBackend:
         for index, line in enumerate(lines):
             button = Gtk.Button(label=line)
             button.set_halign(Gtk.Align.FILL)
+            button.add_css_class("suggestion")
             # Flick Shot mizanam tiram miss mire
             button.connect("clicked", self._on_suggestion_clicked, index)
 

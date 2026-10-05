@@ -13,17 +13,20 @@ import threading
 
 from accessibility.atspi import set_popup_ui, start_atspi
 
+from pathlib import Path
+
 from ui.backends.layer_shell import LayerShellBackend
 from ui.popup_controller import PopupController
 
 
 class ParmerApplication(Gtk.Application):
     def __init__(self):
-        super().__init__(
-            application_id="dev.parmer.Parmer",
-        )
+        super().__init__(application_id="dev.parmer.Parmer")
         self.hold()
+        css = Gtk.CssProvider()
+        css.load_from_path(str(Path(__file__).with_name("style.css")))
 
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.display = None
         self.popup = None
         self.popup_controller = None
@@ -40,12 +43,6 @@ class ParmerApplication(Gtk.Application):
         self.popup_controller = PopupController(display)
         self.popup = LayerShellBackend(self)
 
-        set_popup_ui(
-            self.popup_controller,
-            self.popup,
-        )
-        threading.Thread(
-            target=start_atspi,
-            daemon=True,
-        ).start()
+        set_popup_ui(self.popup_controller, self.popup)
+        threading.Thread(target=start_atspi, daemon=True).start()
         print("GTK activate reached")
