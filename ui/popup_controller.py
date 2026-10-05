@@ -68,4 +68,4 @@ class PopupController:
         return True
 
     def show_at_caret(self, popup, caret, suggestions):
-        return self.show(popup, caret, 320, 100, suggestions)
+        return self.show(popup, caret, popup_width=320, popup_height=100, suggestions=suggestions)
