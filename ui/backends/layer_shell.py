@@ -16,7 +16,7 @@ class LayerShellBackend:
         self.application = application
         self.window = None
 
-    def show(self, monitor, position):
+    def show(self, monitor, position, lines):
         if self.window is not None:
             self.window.close()
 
@@ -52,14 +52,22 @@ class LayerShellBackend:
             position.x,
         )
 
-        label = Gtk.Label(label="Parmer Popup 🐧")
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=8,
+        )
 
-        label.set_margin_top(20)
-        label.set_margin_bottom(20)
-        label.set_margin_start(20)
-        label.set_margin_end(20)
+        box.set_margin_top(12)
+        box.set_margin_bottom(12)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
 
-        window.set_child(label)
+        for line in lines:
+            label = Gtk.Label(label=line)
+            label.set_xalign(0)
+            box.append(label)
+
+        window.set_child(box)
         window.present()
 
         self.window = window

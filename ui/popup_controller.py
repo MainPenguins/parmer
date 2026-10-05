@@ -44,7 +44,7 @@ class PopupController:
 
         return monitor, position
 
-    def show(self, popup, caret, popup_width, popup_height):
+    def show(self, popup, caret, popup_width, popup_height, lines):
         result = self.get_position(
             caret,
             popup_width=popup_width,
@@ -59,15 +59,11 @@ class PopupController:
         popup.show(
             monitor,
             position,
+            lines,
         )
 
         return True
 
 
-    def show_at_caret(self, popup, caret):
-        return self.show(
-            popup,
-            caret,
-            popup_width=320,
-            popup_height=100,
-        )
+    def show_at_caret(self, popup, caret, lines):
+        return self.show(popup, caret, popup_width=320, popup_height=100, lines=lines)
