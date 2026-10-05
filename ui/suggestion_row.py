@@ -36,7 +36,7 @@ class SuggestionRow(Gtk.Button):
         message.add_css_class("suggestion-message")
 
         box.append(original)
-        box.append(message)
+        # box.append(message)
 
         self.set_child(box)
 

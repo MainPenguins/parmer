@@ -9,47 +9,90 @@ gi.require_version("Gtk4LayerShell", "1.0")
 
 from gi.repository import Gtk
 from gi.repository import Gtk4LayerShell as LayerShell
+
 from ui.suggestion_row import SuggestionRow
+
 
 class LayerShellBackend:
     def __init__(self, application):
         self.application = application
         self.window = None
+        self.content_box = None
         self.apply_callback = None
 
     def on_apply_requested(self, callback):
         self.apply_callback = callback
 
-    # Dafam naze charecter disney e
-    def _on_suggestion_clicked(self, button, index):
+    def _on_suggestion_clicked(self, index):
         print(f"Suggestion clicked: {index}")
 
         if self.apply_callback is not None:
             self.apply_callback(index)
 
+    def _update_content(self, suggestions):
+        if self.content_box is None:
+            self.content_box = Gtk.Box(
+                orientation=Gtk.Orientation.VERTICAL,
+                spacing=8,
+            )
+
+            self.content_box.add_css_class("popup-content")
+
+            self.content_box.set_margin_top(12)
+            self.content_box.set_margin_bottom(12)
+            self.content_box.set_margin_start(12)
+            self.content_box.set_margin_end(12)
+
+        box = self.content_box
+
+        child = box.get_first_child()
+
+        while child is not None:
+            next_child = child.get_next_sibling()
+            box.remove(child)
+            child = next_child
+
+        for index, suggestion in enumerate(suggestions):
+            row = SuggestionRow(
+                suggestion=suggestion,
+                index=index,
+                callback=self._on_suggestion_clicked,
+            )
+
+            row.set_halign(Gtk.Align.FILL)
+            box.append(row)
+
+        return box
 
     def show(self, monitor, position, suggestions):
-        if self.window is not None:
-            self.window.close()
+        if self.window is None:
+            window = Gtk.Window(application=self.application)
+            window.set_default_size(320, 100)
 
-        window = Gtk.Window(application=self.application)
-        window.set_default_size(320, 100)
+            LayerShell.init_for_window(window)
+            LayerShell.set_namespace(window, "parmer-popup")
+            LayerShell.set_layer(window, LayerShell.Layer.TOP)
+            LayerShell.set_monitor(window, monitor)
 
-        LayerShell.init_for_window(window)
-        LayerShell.set_namespace(window, "parmer-popup")
-        LayerShell.set_layer(window, LayerShell.Layer.TOP)
-        LayerShell.set_monitor(window, monitor)
+            LayerShell.set_anchor(
+                window,
+                LayerShell.Edge.TOP,
+                True,
+            )
 
-        LayerShell.set_anchor(
+            LayerShell.set_anchor(
+                window,
+                LayerShell.Edge.LEFT,
+                True,
+            )
+
+            self.window = window
+
+        window = self.window
+
+        LayerShell.set_monitor(
             window,
-            LayerShell.Edge.TOP,
-            True,
-        )
-
-        LayerShell.set_anchor(
-            window,
-            LayerShell.Edge.LEFT,
-            True,
+            monitor,
         )
 
         LayerShell.set_margin(
@@ -64,37 +107,21 @@ class LayerShellBackend:
             position.x,
         )
 
-        box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
-            spacing=8,
-        )
-        box.add_css_class("popup-content")
+        content = self._update_content(suggestions)
 
-        box.set_margin_top(12)
-        box.set_margin_bottom(12)
-        box.set_margin_start(12)
-        box.set_margin_end(12)
+        if window.get_child() is None:
+            window.set_child(content)
 
-        for index, suggestion in enumerate(suggestions):
-            row = SuggestionRow(
-                suggestion=suggestion,
-                index=index,
-                callback=self._on_suggestion_clicked,
-            )
-
-            row.set_halign(Gtk.Align.FILL)
-            box.append(row)
-
-        window.set_child(box)
         window.present()
 
-        self.window = window
+#         print(
+#
+#             "LayerShell margins:",
+#             LayerShell.get_margin(window, LayerShell.Edge.TOP),
+#             LayerShell.get_margin(window, LayerShell.Edge.LEFT),
+#         )
 
     def hide(self):
         if self.window is not None:
             self.window.close()
             self.window = None
-
-
-
-# Tiram miss mire

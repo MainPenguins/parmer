@@ -158,13 +158,24 @@ def on_text_checked(suggestions, request):
 
     if suggestions:
         show_popup_at_caret(request.context, suggestions)
+    elif popup is not None:
+        popup.hide()
 
     return False
 
 
 def on_text_ready():
-    request = create_check_request()
+    context = tracker.get_context()
 
+    if context is None or not context.text.strip():
+        session.invalidate()
+
+        if popup is not None:
+            popup.hide()
+
+        return
+
+    request = create_check_request()
     checker_service.check_async(request, on_text_checked)
 
 
@@ -186,8 +197,10 @@ def on_event(event):
         session.set_object(obj)
 
         changed = tracker.update(obj)
+
         try:
             rect = get_caret_rect(obj)
+
             if rect:
                 print(
                     f"Caret: "
@@ -197,10 +210,16 @@ def on_event(event):
                     f"h={rect.height}"
                 )
 
+                state = session.get_snapshot()
+
+                if state["suggestions"]:
+                    show_popup_at_caret(
+                        state["context"],
+                        state["suggestions"],
+                    )
 
         except Exception as error:
             print(f"Caret error: {error}")
-            rect = None
 
 
 

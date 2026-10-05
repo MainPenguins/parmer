@@ -60,6 +60,16 @@ class PopupController:
 
         monitor, position = result
 
+        geometry = monitor.get_geometry()
+
+        print(
+            f"Popup: "
+            f"caret=({caret.x}, {caret.y}) "
+            f"monitor=({geometry.x}, {geometry.y}, "
+            f"{geometry.width}x{geometry.height}) "
+            f"position=({position.x}, {position.y})"
+        )
+
         if self.apply_callback is not None:
             popup.on_apply_requested(self.apply_callback)
 
