@@ -42,6 +42,8 @@ def set_popup_ui(controller, popup_backend):
     popup_controller = controller
     popup = popup_backend
 
+    popup_controller.on_apply_requested(on_apply_requested)
+
 
 def show_popup_at_caret(context, lines):
     state = session.get_snapshot()

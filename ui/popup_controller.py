@@ -4,6 +4,10 @@ from core.position import relative_to_monitor, position_popup
 class PopupController:
     def __init__(self, display):
         self.display = display
+        self.apply_callback = None
+
+    def on_apply_requested(self, callback):
+        self.apply_callback = callback
 
     def get_monitor(self, x, y):
         monitors = self.display.get_monitors()
@@ -56,14 +60,18 @@ class PopupController:
 
         monitor, position = result
 
-        popup.show(
-            monitor,
-            position,
-            lines,
-        )
+        if self.apply_callback is not None:
+            popup.on_apply_requested(self.apply_callback)
+
+        popup.show(monitor, position, lines)
 
         return True
 
-
     def show_at_caret(self, popup, caret, lines):
-        return self.show(popup, caret, popup_width=320, popup_height=100, lines=lines)
+        return self.show(
+            popup,
+            caret,
+            popup_width=320,
+            popup_height=100,
+            lines=lines,
+        )

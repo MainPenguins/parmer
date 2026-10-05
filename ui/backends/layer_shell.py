@@ -15,6 +15,18 @@ class LayerShellBackend:
     def __init__(self, application):
         self.application = application
         self.window = None
+        self.apply_callback = None
+
+    def on_apply_requested(self, callback):
+        self.apply_callback = callback
+
+    # Dafam naze charecter disney e
+    def _on_suggestion_clicked(self, button, index):
+        print(f"Suggestion clicked: {index}")
+
+        if self.apply_callback is not None:
+            self.apply_callback(index)
+
 
     def show(self, monitor, position, lines):
         if self.window is not None:
@@ -62,10 +74,13 @@ class LayerShellBackend:
         box.set_margin_start(12)
         box.set_margin_end(12)
 
-        for line in lines:
-            label = Gtk.Label(label=line)
-            label.set_xalign(0)
-            box.append(label)
+        for index, line in enumerate(lines):
+            button = Gtk.Button(label=line)
+            button.set_halign(Gtk.Align.FILL)
+            # Flick Shot mizanam tiram miss mire
+            button.connect("clicked", self._on_suggestion_clicked, index)
+
+            box.append(button)
 
         window.set_child(box)
         window.present()
@@ -76,3 +91,7 @@ class LayerShellBackend:
         if self.window is not None:
             self.window.close()
             self.window = None
+
+
+
+# Tiram miss mire
