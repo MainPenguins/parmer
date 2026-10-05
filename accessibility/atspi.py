@@ -45,7 +45,7 @@ def set_popup_ui(controller, popup_backend):
     popup_controller.on_apply_requested(on_apply_requested)
 
 
-def show_popup_at_caret(context, lines):
+def show_popup_at_caret(context, suggestions):
     state = session.get_snapshot()
     obj = state["obj"]
 
@@ -60,7 +60,9 @@ def show_popup_at_caret(context, lines):
     if popup_controller is None or popup is None:
         return
 
-    popup_controller.show_at_caret(popup, caret, lines)
+    popup_controller.show_at_caret(popup, caret, suggestions)
+
+
 def create_check_request():
     context = tracker.get_context()
     generation = session.get_snapshot()["generation"]
@@ -148,9 +150,7 @@ def on_text_checked(suggestions, request):
     session.update_suggestions(request.context, suggestions, request.generation)
 
     if suggestions:
-        lines = build_overlay_lines(request.context, suggestions)
-
-        show_popup_at_caret(request.context, lines)
+        show_popup_at_caret(request.context, suggestions)
 
     return False
 
@@ -189,7 +189,7 @@ def on_event(event):
                     f"w={rect.width}, "
                     f"h={rect.height}"
                 )
-            show_popup_at_caret(rect)
+
 
         except Exception as error:
             print(f"Caret error: {error}")

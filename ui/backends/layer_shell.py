@@ -9,7 +9,7 @@ gi.require_version("Gtk4LayerShell", "1.0")
 
 from gi.repository import Gtk
 from gi.repository import Gtk4LayerShell as LayerShell
-
+from ui.suggestion_row import SuggestionRow
 
 class LayerShellBackend:
     def __init__(self, application):
@@ -28,7 +28,7 @@ class LayerShellBackend:
             self.apply_callback(index)
 
 
-    def show(self, monitor, position, lines):
+    def show(self, monitor, position, suggestions):
         if self.window is not None:
             self.window.close()
 
@@ -75,14 +75,15 @@ class LayerShellBackend:
         box.set_margin_start(12)
         box.set_margin_end(12)
 
-        for index, line in enumerate(lines):
-            button = Gtk.Button(label=line)
-            button.set_halign(Gtk.Align.FILL)
-            button.add_css_class("suggestion")
-            # Flick Shot mizanam tiram miss mire
-            button.connect("clicked", self._on_suggestion_clicked, index)
+        for index, suggestion in enumerate(suggestions):
+            row = SuggestionRow(
+                suggestion=suggestion,
+                index=index,
+                callback=self._on_suggestion_clicked,
+            )
 
-            box.append(button)
+            row.set_halign(Gtk.Align.FILL)
+            box.append(row)
 
         window.set_child(box)
         window.present()
