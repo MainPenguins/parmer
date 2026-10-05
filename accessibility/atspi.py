@@ -71,6 +71,7 @@ def create_check_request():
 
 def on_apply_requested(index):
     print(f"Apply requested: {index}")
+
     state = session.get_snapshot()
     context = state["context"]
     suggestions = state["suggestions"]
@@ -81,55 +82,61 @@ def on_apply_requested(index):
 
     if state["obj"] is None:
         print("Apply ignored: no active field")
-
         return
 
     if context is None or tracker.text != context.text:
         print("Apply ignored: text changed")
-
         return
 
     if index < 0 or index >= len(suggestions):
         print("Apply ignored: bad index")
-
         return
 
-    replacements = suggestions[index].replacements
+    suggestion = suggestions[index]
 
-    if not replacements:
+    if not suggestion.replacements:
         print("Apply ignored: no replacement")
-
         return
 
-    replacement = replacements[0]
+    replacement = suggestion.replacements[0]
 
     try:
-        Atspi.EditableText.delete_text(state["obj"], suggestions[index].start, suggestions[index].end)
+        Atspi.EditableText.delete_text(
+            state["obj"],
+            suggestion.start,
+            suggestion.end,
+        )
 
         Atspi.EditableText.insert_text(
             state["obj"],
-            suggestions[index].start,
+            suggestion.start,
             replacement,
             len(replacement),
         )
 
+        session.invalidate()
+
+        if popup is not None:
+            popup.hide()
+
         print("Applied.")
+
     except Exception as error:
         print(f"Apply error: {error}")
 
 
-def build_overlay_lines(context, suggestions):
-    lines = []
-
-    for suggestion in suggestions:
-        original = context.text[suggestion.start:suggestion.end]
-
-        if suggestion.replacements:
-            lines.append(f"{original} -> {suggestion.replacements[0]}")
-        else:
-            lines.append(original)
-
-    return lines
+# def build_overlay_lines(context, suggestions):
+#     lines = []
+#
+#     for suggestion in suggestions:
+#         original = context.text[suggestion.start:suggestion.end]
+#
+#         if suggestion.replacements:
+#             lines.append(f"{original} -> {suggestion.replacements[0]}")
+#         else:
+#             lines.append(original)
+#
+#     return lines
 
 
 def on_text_checked(suggestions, request):

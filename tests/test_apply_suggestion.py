@@ -190,3 +190,14 @@ def test_apply_ignores_suggestion_without_replacement(monkeypatch):
     atspi.on_apply_requested(0)
 
     assert applied == []
+
+def test_apply_suggestion_hides_popup(monkeypatch):
+    hidden = []
+
+    class FakePopup:
+        def hide(self):
+            hidden.append(True)
+
+    popup = FakePopup()
+
+    monkeypatch.setattr(atspi, "popup", popup)
