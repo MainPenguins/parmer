@@ -1,0 +1,13 @@
+.popup-content {
+    padding: 8px;
+}
+
+.suggestion {
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.suggestion:hover {
+    background-color: alpha(currentColor, 0.08);
+}

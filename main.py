@@ -2,5 +2,15 @@
 
 
 
+import sys
+
+from ui.application import ParmerApplication
+
+
+def main():
+    app = ParmerApplication()
+    return app.run(sys.argv)
+
+
 if __name__ == "__main__":
-    pass
+    sys.exit(main())
